@@ -137,10 +137,29 @@ $(function() {
     }, PING_FREQUENCY * 1000);
   });
 
+  socket.on('quest disband', function () {
+    log('Quest disbanded. Looking for other solo players.');
+    clearInterval(send_coordinates);
+    
+    socket.emit('looking for party');
+    looking_for_party = setInterval(function() {
+      socket.emit('who is solo');
+    }, PING_FREQUENCY * 1000);
+  });
+
   socket.on('party on obj', function () {
     log('Party has reached the objective!');
     socket.emit('fighting boss');
     clearInterval(send_coordinates);
+  });
+
+  socket.on('fight disband', function () {
+    log('Fight disbanded. Looking for other solo players.');
+    
+    socket.emit('looking for party');
+    looking_for_party = setInterval(function() {
+      socket.emit('who is solo');
+    }, PING_FREQUENCY * 1000);
   });
 
   socket.on('boss hit', function (data) {
@@ -148,8 +167,13 @@ $(function() {
   });
 
   socket.on('boss defeated', function (){
-    log('CONGRATULATIONS! BOSS DEFEATED!');
-    // TODO: Leave the fight. Get the rewards. Restart the search process.
+    log('CONGRATULATIONS! BOSS DEFEATED! HERE ARE YOUR REWARDS...');
+
+    socket.emit('looking for party');
+    log('Looking for other solo members...');
+    looking_for_party = setInterval(function() {
+      socket.emit('who is solo');
+    }, PING_FREQUENCY * 1000);
   });
 
   // Whenever the server emits 'new message', update the chat body
@@ -159,7 +183,7 @@ $(function() {
 
   // Whenever the server emits 'user joined', log it in the chat body
   socket.on('user joined', function (data) {
-    log(data.username + ' joined');
+    log(data.username + ', ' + data.socketid + ', joined');
     addParticipantsMessage(data);
   });
 

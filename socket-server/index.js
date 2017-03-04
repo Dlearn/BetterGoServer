@@ -39,7 +39,7 @@ io.on('connection', function (socket) {
     socket.index = soloPlayers.length;
     soloPlayers.push({
       username: socket.username,
-      socketid: socket.id 
+      socketid: socket.id
     });
 
     // This socket is logged in.
@@ -49,8 +49,8 @@ io.on('connection', function (socket) {
 
     // echo globally (all clients) that a person has connected
     socket.broadcast.emit('user joined', {
-      socketid: socket.id,
       username: socket.username,
+      socketid: socket.id,
       numUsers: numUsers
     });
   });
@@ -103,29 +103,33 @@ io.on('connection', function (socket) {
   });
 
   socket.on('cur coord', function (cur_coord) {
-    var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
-    var y_sqr = (objCoodinates.y - cur_coord.y) * (objCoodinates.y - cur_coord.y);
-    var distance = Math.sqrt(x_sqr * x_sqr + y_sqr * y_sqr);
-    //console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
-    if (distance <= 1) 
+    // Disconnection policy
+    if (questPlayers.length !== 2) 
     {
-      //console.log(socket.username + ' is close enough!');
-      questPlayers[socket.index].arrived_at_obj = true;
-      if (partyAtObj(questPlayers)) 
-      {
-        console.log('BOTH PLAYERS ARE HERE!');
-        io.to('quest').emit('party on obj');
-      }
+      console.log('Party member disconnected. Disbanding quest.');
+      socket.emit('quest disband');
     } else
     {
-      questPlayers[socket.index].arrived_at_obj = false;
+      var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
+      var y_sqr = (objCoodinates.y - cur_coord.y) * (objCoodinates.y - cur_coord.y);
+      var distance = Math.sqrt(x_sqr * x_sqr + y_sqr * y_sqr);
+      console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
+      if (distance <= 1) 
+      {
+        questPlayers[socket.index].arrived_at_obj = true;
+        if (partyAtObj(questPlayers)) 
+        {
+          console.log('Party has arrived at the objective and will fight boss!');
+          io.to('quest').emit('party on obj');
+        }
+      } else
+      {
+        questPlayers[socket.index].arrived_at_obj = false;
+      }
     }
   });
 
   socket.on('fighting boss', function () {
-    // TODO: Remove consolelog
-    console.log(socket.username + ' is fighting a boss!');
-
     // Remove from questPlayers
     questPlayers.removeSocketObj(socket.username);
 
@@ -134,34 +138,48 @@ io.on('connection', function (socket) {
     socket.index = fightPlayers.length;
     fightPlayers.push({
       username: socket.username,
-      socketid: socket.id
+      socketid: socket.id,
     });
     socket.leave('quest');
     socket.join('fight');
   });
 
   socket.on('attack', function (damage) {
-    if(socket.rooms['fight']) 
+    // Disconnection policy
+    if (questPlayers.length !== 2) 
+    {
+      console.log('Party member disconnected. Disbanding fight.');
+      socket.emit('fight disband');
+    } else if(socket.rooms['fight']) 
     {
       fightPlayers[0] -= damage;
       fightPlayers[0] = Math.max(0, fightPlayers[0]);
       console.log(socket.username + ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.');
-      if (fightPlayers[0] > 0)
-      {
-        var comp_message = ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.';
-        io.to('fight').emit('boss hit', {
-          username: socket.username,
-          message: comp_message
-        });
-      } else
-      {
-        io.to('fight').emit('boss defeated');
-      }
+      
+      io.to('fight').emit('boss hit', {
+        username: socket.username,
+        message: ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.'
+      });
+      if (fightPlayers[0] <= 0) io.to('fight').emit('boss defeated');
     } 
-    // TODO: REMOVE REDUNDANT
+    // TODO: REMOVE REDUNDANT ON APP
     else socket.emit('new message', {
       username: socket.username,
       message: 'But you aren\'t fighting anything'
+    });
+  });
+
+  socket.on('looking for party', function () {
+    socket.leave('quest');
+    questPlayers.removeSocketObj(socket.username);
+    socket.leave('fight');
+    fightPlayers.removeSocketObj(socket.username);
+
+    socket.join('solo');
+    socket.index = soloPlayers.length;
+    soloPlayers.push({
+      username: socket.username,
+      socketid: socket.id,
     });
   });
 
@@ -171,7 +189,6 @@ io.on('connection', function (socket) {
       console.log('User ' + socket.username + ' discconnected.');
       --numUsers;
 
-      // TODO: Check how to handle disconnections
       soloPlayers.removeSocketObj(socket.username);
       questPlayers.removeSocketObj(socket.username);
       fightPlayers.removeSocketObj(socket.username);
