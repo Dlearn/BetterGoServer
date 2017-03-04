@@ -13,22 +13,20 @@ server.listen(port, function () {
 app.use(express.static(__dirname + '/public'));
 
 var numUsers = 0;
-var userList = [];
-var soloPlayers = [];
-var questRooms = [
-  { room: 'qroom1', destx: 5, desty: 5, occupied: false },
-  { room: 'qroom2', destx: 5, desty: 5, occupied: false },
-  { room: 'qroom3', destx: 5, desty: 5, occupied: false },
-  { room: 'qroom4', destx: 5, desty: 5, occupied: false },
-  { room: 'qroom5', destx: 5, desty: 5, occupied: false }
-];
 
-// TODO: Fight rooms
+var soloIndex;
+var soloPlayers = [];
+
+var questIndex;
+var questPlayers = [];
+
+var fightIndex;
 var fightPlayers = [];
+
+var objCoodinates = { x: 54, y: 54 }
 var monsterHealth = 100;
 
 io.on('connection', function (socket) {
-  console.log('User connected.');
   var addedUser = false;
 
   // when the client emits 'add user', this listens and executes
@@ -38,21 +36,19 @@ io.on('connection', function (socket) {
     addedUser = true;
     // we store the username in the socket session for this client
     socket.username = 'user'+numUsers.toString();
+    console.log('User ' + socket.username + ' connected.');
     ++numUsers;
-    socket.emit('login', {
-      numUsers: numUsers
-    });
 
+    // Add to room 'solo'
     socket.join('solo');
-    // Add the new user to the list of users
-    userList.push({
-      username: socket.username,
-      socketid: socket.id,
-      room: 'solo'
-    });
     soloPlayers.push({
       username: socket.username,
       socketid: socket.id 
+    });
+
+    // This socket is logged in.
+    socket.emit('login', {
+      numUsers: numUsers
     });
 
     // echo globally (all clients) that a person has connected
@@ -63,12 +59,64 @@ io.on('connection', function (socket) {
     });
   });
 
+  // Client queries server who is solo
+  socket.on('who is solo', function () {
+    socket.emit('solo players', soloPlayers);
+  });
+
+  socket.on('invite', function (invitee_username) {
+    // Invite a user into a room.
+    // Automatically joins the room and causes target user to join a room
+    console.log(socket.username + ' has invited ' + invitee_username + ' to a party!');
+    var invitee_id = soloPlayers.getSocketObj(invitee_username).socketid;
+    if (invitee_id)
+    {
+      // Inviter forms a party
+      socket.emit('form party', {
+        inviter: socket.username,
+        invitee: invitee_username,
+        obj: objCoodinates
+      });
+      
+      // Invitee forms a party
+      socket.broadcast.to(invitee_id).emit('form party', {
+        inviter: socket.username,
+        invitee: invitee_username
+      });
+    }
+  });
+
+  socket.on('formed party', function () {
+    // TODO: Remove consolelog
+    console.log(socket.username + ' has joined a party!');
+    soloPlayers.removeSocketObj(socket.username);
+    questPlayers.push({
+      username: socket.username,
+      socketid: socket.id,
+      arrived_at_obj: false
+    });
+    socket.leave('solo');
+    socket.join('quest');
+  });
+
+  socket.on('cur coord', function (cur_coord) {
+    var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
+    var y_sqr = (objCoodinates.y - cur_coord.y) * (objCoodinates.y - cur_coord.y);
+    var distance = Math.sqrt(x_sqr * x_sqr + y_sqr * y_sqr);
+    if (distance < 1) 
+    {
+      console.log(socket.username + ' is close enough!');
+      questPlayers.getSocketObj()
+    }
+  });
+
   // when the user disconnects.. perform this
   socket.on('disconnect', function () {
     if (addedUser) {
+      console.log('User ' + socket.username + ' discconnected.');
       --numUsers;
 
-      userList.removeSocketObj(socket.username);
+      // TODO: Check how to handle disconnections
       soloPlayers.removeSocketObj(socket.username);
 
       // echo globally that this client has left
@@ -77,16 +125,6 @@ io.on('connection', function (socket) {
         numUsers: numUsers
       });
     }
-  });
-
-  socket.on('change room to', function (room) {
-    var socketcurrentroom = userList.getSocketObj(socket.username).room;
-    socket.leave(socketcurrentroom);
-    socket.join(room);
-    //socket.emit('console', 'CHANGED ROOM');
-
-    io.in(socketcurrentroom).emit('new message', 'NEW QUEST')
-    // TODO: Start checking coordinates
   });
 
   // when the client emits 'new message', this listens and executes
@@ -113,32 +151,7 @@ io.on('connection', function (socket) {
           username: socket.username + ' to ' + whispereeUsername,
           message: message
         });
-      } else {}
-      
-    } else if (data[0] === 'invite')
-    {
-      // Invite a user into a room.
-      // Automatically joins the room and causes target user to join a room
-      var inviteeUsername = data[1];
-      var inviteeid = soloPlayers.getSocketObj(inviteeUsername).socketid;
-      if (inviteeid)
-      {
-        socket.leave('solo');
-        var freeRoom = questRooms.getFreeRoom();
-        freeRoom.occupied = true;
-        socket.join(freeRoom);
-        socket.broadcast.to(inviteeid).emit('invite to room', freeRoom);
-      } else {}
-    } else if (data[0] === 'getSolo')
-    {
-      //socket.emit('console', soloPlayers);
-      soloPlayers.forEach(function (user)
-      {
-        io.emit('new message', {
-          username: user.socketid,
-          message: user.username
-        });
-      });
+      } 
     } else if (data[0] === 'attack' && monsterHealth > 0) 
     {
       monsterHealth--;
@@ -166,17 +179,11 @@ Array.prototype.getSocketObj = function (username) {
 
 Array.prototype.removeSocketObj = function (username) {
    for (var i = this.length; i--;) {
-      if (this[i].username == username) 
+      if (this[i].username === username) 
       {
-        //console.log(username + 'removed.');
+        // TODO: REMOVE CONSOLELOG
+        console.log(username + ' removed.');
         this.splice(i, 1);
       }
    }
-}
-
-Array.prototype.getFreeRoom = function () {
-  for (i in this) {
-    if (this[i].occupied === false) return this[i];
-  }
-  return 0;
 }
