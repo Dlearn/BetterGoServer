@@ -14,17 +14,12 @@ app.use(express.static(__dirname + '/public'));
 
 var numUsers = 0;
 
-var soloIndex;
 var soloPlayers = [];
-
-var questIndex;
 var questPlayers = [];
-
-var fightIndex;
 var fightPlayers = [];
+fightPlayers.push(0);
 
-var objCoodinates = { x: 54, y: 54 }
-var monsterHealth = 100;
+var objCoodinates = { x: 51, y: 51 }
 
 io.on('connection', function (socket) {
   var addedUser = false;
@@ -41,6 +36,7 @@ io.on('connection', function (socket) {
 
     // Add to room 'solo'
     socket.join('solo');
+    socket.index = soloPlayers.length;
     soloPlayers.push({
       username: socket.username,
       socketid: socket.id 
@@ -65,6 +61,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('invite', function (invitee_username) {
+    if (socket.username === invitee_username) return;
     // Invite a user into a room.
     // Automatically joins the room and causes target user to join a room
     console.log(socket.username + ' has invited ' + invitee_username + ' to a party!');
@@ -89,12 +86,18 @@ io.on('connection', function (socket) {
   socket.on('formed party', function () {
     // TODO: Remove consolelog
     console.log(socket.username + ' has joined a party!');
+
+    // Remove from soloPlayers
     soloPlayers.removeSocketObj(socket.username);
+
+    // Add to questPlayers
+    socket.index = questPlayers.length;
     questPlayers.push({
       username: socket.username,
       socketid: socket.id,
       arrived_at_obj: false
     });
+
     socket.leave('solo');
     socket.join('quest');
   });
@@ -103,11 +106,63 @@ io.on('connection', function (socket) {
     var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
     var y_sqr = (objCoodinates.y - cur_coord.y) * (objCoodinates.y - cur_coord.y);
     var distance = Math.sqrt(x_sqr * x_sqr + y_sqr * y_sqr);
-    if (distance < 1) 
+    //console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
+    if (distance <= 1) 
     {
-      console.log(socket.username + ' is close enough!');
-      questPlayers.getSocketObj()
+      //console.log(socket.username + ' is close enough!');
+      questPlayers[socket.index].arrived_at_obj = true;
+      if (partyAtObj(questPlayers)) 
+      {
+        console.log('BOTH PLAYERS ARE HERE!');
+        io.to('quest').emit('party on obj');
+      }
+    } else
+    {
+      questPlayers[socket.index].arrived_at_obj = false;
     }
+  });
+
+  socket.on('fighting boss', function () {
+    // TODO: Remove consolelog
+    console.log(socket.username + ' is fighting a boss!');
+
+    // Remove from questPlayers
+    questPlayers.removeSocketObj(socket.username);
+
+    fightPlayers[0] = 100;
+    // Add to fightPlayers
+    socket.index = fightPlayers.length;
+    fightPlayers.push({
+      username: socket.username,
+      socketid: socket.id
+    });
+    socket.leave('quest');
+    socket.join('fight');
+  });
+
+  socket.on('attack', function (damage) {
+    if(socket.rooms['fight']) 
+    {
+      fightPlayers[0] -= damage;
+      fightPlayers[0] = Math.max(0, fightPlayers[0]);
+      console.log(socket.username + ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.');
+      if (fightPlayers[0] > 0)
+      {
+        var comp_message = ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.';
+        io.to('fight').emit('boss hit', {
+          username: socket.username,
+          message: comp_message
+        });
+      } else
+      {
+        io.to('fight').emit('boss defeated');
+      }
+    } 
+    // TODO: REMOVE REDUNDANT
+    else socket.emit('new message', {
+      username: socket.username,
+      message: 'But you aren\'t fighting anything'
+    });
   });
 
   // when the user disconnects.. perform this
@@ -118,6 +173,8 @@ io.on('connection', function (socket) {
 
       // TODO: Check how to handle disconnections
       soloPlayers.removeSocketObj(socket.username);
+      questPlayers.removeSocketObj(socket.username);
+      fightPlayers.removeSocketObj(socket.username);
 
       // echo globally that this client has left
       socket.broadcast.emit('user left', {
@@ -152,14 +209,12 @@ io.on('connection', function (socket) {
           message: message
         });
       } 
-    } else if (data[0] === 'attack' && monsterHealth > 0) 
-    {
-      monsterHealth--;
-      io.emit('new message', {
-        username: socket.username,
-        message: monsterHealth
-      });
-    } else
+    }
+    else if (data[0] === 'getSolo') socket.emit('console', soloPlayers);
+    else if (data[0] === 'getQuest') socket.emit('console', questPlayers);
+    else if (data[0] === 'getFight') socket.emit('console', fightPlayers);
+    else if (data[0] === 'rooms') socket.emit('console', socket.rooms);
+    else
     {
       // we tell the client to execute 'new message'
       io.emit('new message', {
@@ -179,11 +234,15 @@ Array.prototype.getSocketObj = function (username) {
 
 Array.prototype.removeSocketObj = function (username) {
    for (var i = this.length; i--;) {
-      if (this[i].username === username) 
-      {
-        // TODO: REMOVE CONSOLELOG
-        console.log(username + ' removed.');
-        this.splice(i, 1);
-      }
+      if (this[i].username === username) this.splice(i, 1);
    }
+}
+
+function partyAtObj(questPlayers)
+{
+  questPlayers.forEach(function (player)
+    {
+      if (!player.arrived_at_obj) return false;
+    });
+  return true;
 }

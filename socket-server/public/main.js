@@ -1,6 +1,6 @@
 $(function() {
   var PING_FREQUENCY = 5;
-  var cur_x = 50, cur_y = 50; // TODO COORDINATES
+  var cur_x = 50, cur_y = 50; // TODO Actual coordinate system
   var COLORS = [
     '#e21400', '#91580f', '#f8a700', '#f78b00',
     '#58dc00', '#287b00', '#a8f07a', '#4ae8c4',
@@ -87,6 +87,7 @@ $(function() {
 
         message_parts = message.split(/[ ]+/);
         if (message_parts[0] === 'invite') socket.emit('invite', message_parts[1]);
+        else if (message_parts[0] === 'attack') socket.emit('attack', getRandomInt(10, 30));
         else socket.emit('new message', message);
       }
     }
@@ -122,13 +123,13 @@ $(function() {
 
   socket.on('form party', function (quest) {
     log(quest.inviter + ' has formed a questing party with ' + quest.invitee + '!');
-    // TODO: Set quest.obj
+    // TODO: Set quest.obj map marker on map
     socket.emit('formed party');
     clearInterval(looking_for_party); // Stop querying for solo players
 
     send_coordinates = setInterval(function() {
-      jitter_x = Math.floor((Math.random() * 10)) - 5;
-      jitter_y = Math.floor((Math.random() * 10)) - 5;
+      jitter_x = getRandomInt(-2, 2);
+      jitter_y = getRandomInt(-2, 2);
       socket.emit('cur coord', {
         x: cur_x + jitter_x,
         y: cur_y + jitter_y
@@ -136,6 +137,20 @@ $(function() {
     }, PING_FREQUENCY * 1000);
   });
 
+  socket.on('party on obj', function () {
+    log('Party has reached the objective!');
+    socket.emit('fighting boss');
+    clearInterval(send_coordinates);
+  });
+
+  socket.on('boss hit', function (data) {
+    addChatMessage(data);
+  });
+
+  socket.on('boss defeated', function (){
+    log('CONGRATULATIONS! BOSS DEFEATED!');
+    // TODO: Leave the fight. Get the rewards. Restart the search process.
+  });
 
   // Whenever the server emits 'new message', update the chat body
   socket.on('new message', function (data) {
@@ -171,4 +186,8 @@ $(function() {
     console.log(data);
   });  
   
+  // Returns a random integer between min (inclusive) and max (inclusive)
+  function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
 });
