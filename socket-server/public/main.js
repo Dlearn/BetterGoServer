@@ -128,8 +128,8 @@ $(function() {
     clearInterval(looking_for_party); // Stop querying for solo players
 
     send_coordinates = setInterval(function() {
-      jitter_x = getRandomInt(-2, 2);
-      jitter_y = getRandomInt(-2, 2);
+      jitter_x = getRandomInt(-1, 2);
+      jitter_y = getRandomInt(-1, 2);
       socket.emit('cur coord', {
         x: cur_x + jitter_x,
         y: cur_y + jitter_y

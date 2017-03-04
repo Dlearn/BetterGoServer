@@ -117,7 +117,8 @@ io.on('connection', function (socket) {
       if (distance <= 1) 
       {
         questPlayers[socket.index].arrived_at_obj = true;
-        if (partyAtObj(questPlayers)) 
+        var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
+        if (allArrived) 
         {
           console.log('Party has arrived at the objective and will fight boss!');
           io.to('quest').emit('party on obj');
@@ -146,7 +147,7 @@ io.on('connection', function (socket) {
 
   socket.on('attack', function (damage) {
     // Disconnection policy
-    if (questPlayers.length !== 2) 
+    if (fightPlayers.length !== 3) 
     {
       console.log('Party member disconnected. Disbanding fight.');
       socket.emit('fight disband');
@@ -253,13 +254,4 @@ Array.prototype.removeSocketObj = function (username) {
    for (var i = this.length; i--;) {
       if (this[i].username === username) this.splice(i, 1);
    }
-}
-
-function partyAtObj(questPlayers)
-{
-  questPlayers.forEach(function (player)
-    {
-      if (!player.arrived_at_obj) return false;
-    });
-  return true;
 }
