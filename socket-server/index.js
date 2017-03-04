@@ -34,25 +34,40 @@ io.on('connection', function (socket) {
     console.log('User ' + socket.username + ' connected.');
     ++numUsers;
 
-    // Add to room 'solo'
-    socket.join('solo');
-    socket.index = soloPlayers.length;
-    soloPlayers.push({
-      username: socket.username,
-      socketid: socket.id
-    });
+    var questPlayer = questPlayers.getSocketObj(socket.username);
+    var fightPlayer = fightPlayers.getSocketObj(socket.username);
+    if (questPlayer)
+    {
+      console.log('questPlayer' + socket.username + ' reconnected');
+      questPlayer.socketid = socket.id;
+      questPlayer.connected = true;
+    } else if (fightPlayer)
+    {
+      console.log('fightPlayer' + socket.username + ' reconnected');
+      fightPlayer.socketid = socket.id;
+      fightPlayer.connected = true;
+    } else
+    {
+      // Add to room 'solo'
+      socket.join('solo');
+      socket.index = soloPlayers.length;
+      soloPlayers.push({
+        username: socket.username,
+        socketid: socket.id
+      });
 
-    // This socket is logged in.
-    socket.emit('login', {
-      numUsers: numUsers
-    });
+      // This socket is logged in.
+      socket.emit('login', {
+        numUsers: numUsers
+      });
 
-    // echo globally (all clients) that a person has connected
-    socket.broadcast.emit('user joined', {
-      username: socket.username,
-      socketid: socket.id,
-      numUsers: numUsers
-    });
+      // echo globally (all clients) that a person has connected
+      socket.broadcast.emit('user joined', {
+        username: socket.username,
+        socketid: socket.id,
+        numUsers: numUsers
+      });
+    }
   });
 
   // Client queries server who is solo
@@ -95,6 +110,7 @@ io.on('connection', function (socket) {
     questPlayers.push({
       username: socket.username,
       socketid: socket.id,
+      connected: true,
       arrived_at_obj: false
     });
 
@@ -106,8 +122,9 @@ io.on('connection', function (socket) {
     // Disconnection policy
     if (questPlayers.length !== 2) 
     {
-      console.log('Party member disconnected. Disbanding quest.');
-      socket.emit('quest disband');
+      // console.log('Party member disconnected. Disbanding quest.');
+      // socket.emit('quest disband');
+      console.log('waiting for party to reconnect...');
     } else
     {
       var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
@@ -140,6 +157,7 @@ io.on('connection', function (socket) {
     fightPlayers.push({
       username: socket.username,
       socketid: socket.id,
+      connected: true,
     });
     socket.leave('quest');
     socket.join('fight');
@@ -149,8 +167,9 @@ io.on('connection', function (socket) {
     // Disconnection policy
     if (fightPlayers.length !== 3) 
     {
-      console.log('Party member disconnected. Disbanding fight.');
-      socket.emit('fight disband');
+      // console.log('Party member disconnected. Disbanding fight.');
+      // socket.emit('fight disband');
+      console.log('waiting for party to reconnect...');
     } else if(socket.rooms['fight']) 
     {
       fightPlayers[0] -= damage;
@@ -191,8 +210,8 @@ io.on('connection', function (socket) {
       --numUsers;
 
       soloPlayers.removeSocketObj(socket.username);
-      questPlayers.removeSocketObj(socket.username);
-      fightPlayers.removeSocketObj(socket.username);
+      if(socket.rooms['quest']) questPlayers.getSocketObj(socket.username).connected = false;
+      else if(socket.rooms['fight']) fightPlayers.getSocketObj(socket.username).connected = false;
 
       // echo globally that this client has left
       socket.broadcast.emit('user left', {
