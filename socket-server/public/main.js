@@ -107,17 +107,18 @@ $(function() {
     addParticipantsMessage(data);
 
     looking_for_party = setInterval(function() {
-      socket.emit('who is solo');
+      socket.emit('get solos');
     }, PING_FREQUENCY * 1000);
   });
 
   // TODO: IMPLEMENT INVITING
   socket.on('solo players', function(data) {
     var message = '';
-    data.forEach(function (user)
+    for(var i=0;;i++)
     {
-      message += user.username + ', ';
-    });
+      if(data['key'+i]) message += data['key'+i] + ', ';
+      else break;
+    }
     log(message);
   });
 

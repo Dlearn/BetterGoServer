@@ -76,8 +76,13 @@ io.on('connection', function (socket) {
   });
 
   // Client queries server who is solo
-  socket.on('who is solo', function () {
-    socket.emit('solo players', soloPlayers);
+  socket.on('get solos', function () {
+    var data = {};
+    for (var i=0; i<soloPlayers.length; i++)
+    {
+      data['key'+i] = soloPlayers[i].username;
+    }
+    socket.emit('solo players', data);
   });
 
   socket.on('invite', function (data) {
