@@ -86,8 +86,8 @@ $(function() {
         $inputMessage.val('');
 
         message_parts = message.split(/[ ]+/);
-        if (message_parts[0] === 'invite') socket.emit('invite', message_parts[1]);
-        else if (message_parts[0] === 'attack') socket.emit('attack', getRandomInt(10, 30));
+        if (message_parts[0] === 'invite') socket.emit('invite', { username: message_parts[1] });
+        else if (message_parts[0] === 'attack') socket.emit('attack', { damage: getRandomInt(10, 30) });
         else socket.emit('new message', message);
       }
     }
@@ -99,7 +99,6 @@ $(function() {
 
   socket.emit('add user');
 
-  // Whenever the server emits 'login', log the login message
   socket.on('login', function (data) {
     connected = true;
     // Display the welcome message
@@ -112,6 +111,7 @@ $(function() {
     }, PING_FREQUENCY * 1000);
   });
 
+  // TODO: IMPLEMENT INVITING
   socket.on('solo players', function(data) {
     var message = '';
     data.forEach(function (user)
@@ -128,8 +128,8 @@ $(function() {
     clearInterval(looking_for_party); // Stop querying for solo players
 
     send_coordinates = setInterval(function() {
-      jitter_x = getRandomInt(-1, 2);
-      jitter_y = getRandomInt(-1, 2);
+      jitter_x = getRandomInt(0, 2);
+      jitter_y = getRandomInt(0, 2);
       socket.emit('cur coord', {
         x: cur_x + jitter_x,
         y: cur_y + jitter_y

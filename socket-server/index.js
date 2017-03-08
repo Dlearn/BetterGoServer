@@ -25,12 +25,17 @@ io.on('connection', function (socket) {
   var addedUser = false;
 
   // when the client emits 'add user', this listens and executes
-  socket.on('add user', function () {
+  socket.on('add user', function (data) {
     if (addedUser) return;
-
     addedUser = true;
+
     // we store the username in the socket session for this client
-    socket.username = 'user'+numUsers.toString();
+    if (data) 
+    {
+      // TODO: Check no repeated usernames
+      socket.username = data.username;
+    }
+    else socket.username = 'user'+numUsers.toString();
     console.log('User ' + socket.username + ' connected.');
     ++numUsers;
 
@@ -75,25 +80,25 @@ io.on('connection', function (socket) {
     socket.emit('solo players', soloPlayers);
   });
 
-  socket.on('invite', function (invitee_username) {
-    if (socket.username === invitee_username) return;
+  socket.on('invite', function (data) {
+    if (socket.username === data.username) return;
     // Invite a user into a room.
     // Automatically joins the room and causes target user to join a room
-    console.log(socket.username + ' has invited ' + invitee_username + ' to a party!');
-    var invitee_id = soloPlayers.getSocketObj(invitee_username).socketid;
+    var invitee_id = soloPlayers.getSocketObj(data.username).socketid;
     if (invitee_id)
     {
+      console.log(socket.username + ' has invited ' + data.username + ' to a party!');
       // Inviter forms a party
       socket.emit('form party', {
         inviter: socket.username,
-        invitee: invitee_username,
-        obj: objCoodinates
+        invitee: data.username,
+        //obj: objCoodinates
       });
       
       // Invitee forms a party
       socket.broadcast.to(invitee_id).emit('form party', {
         inviter: socket.username,
-        invitee: invitee_username
+        invitee: data.username
       });
     }
   });
@@ -163,7 +168,7 @@ io.on('connection', function (socket) {
     socket.join('fight');
   });
 
-  socket.on('attack', function (damage) {
+  socket.on('attack', function (data) {
     // Disconnection policy
     if (fightPlayers.length !== 3) 
     {
@@ -172,13 +177,13 @@ io.on('connection', function (socket) {
       console.log('waiting for party to reconnect...');
     } else if(socket.rooms['fight']) 
     {
-      fightPlayers[0] -= damage;
+      fightPlayers[0] -= data.damage;
       fightPlayers[0] = Math.max(0, fightPlayers[0]);
-      console.log(socket.username + ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.');
+      console.log(socket.username + ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.');
       
       io.to('fight').emit('boss hit', {
         username: socket.username,
-        message: ' hit the boss for ' + damage + '. The boss has ' + fightPlayers[0] + ' left.'
+        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.'
       });
       if (fightPlayers[0] <= 0) io.to('fight').emit('boss defeated');
     } 
