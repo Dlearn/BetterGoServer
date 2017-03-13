@@ -18,16 +18,6 @@ $(function() {
 
   var socket = io();
 
-  function addParticipantsMessage (data) {
-    var message = '';
-    if (data.numUsers === 1) {
-      message += "there's 1 participant";
-    } else {
-      message += "there are " + data.numUsers + " participants";
-    }
-    log(message);
-  }
-
   // Log a message
   function log (message) {
     var $el = $('<li>').addClass('log').text(message);
@@ -102,35 +92,31 @@ $(function() {
   socket.on('login', function (data) {
     connected = true;
     // Display the welcome message
-    var message = "Welcome to Socket.IO Chat – ";
+    var message = "Welcome " +  data.username + ", you have logged in.";
     log(message);
-    addParticipantsMessage(data);
 
+    log('Looking for other solo members...');
     looking_for_party = setInterval(function() {
       socket.emit('get solos');
     }, PING_FREQUENCY * 1000);
   });
 
-  // TODO: IMPLEMENT INVITING
   socket.on('solo players', function(data) {
     var message = '';
-    for(var i=0;;i++)
-    {
-      if(data['key'+i]) message += data['key'+i] + ', ';
-      else break;
-    }
-    log(message);
+    console.log(data);
   });
 
   socket.on('form party', function (quest) {
     log(quest.inviter + ' has formed a questing party with ' + quest.invitee + '!');
+    log('Walking around...');
+
     // TODO: Set quest.obj map marker on map
     socket.emit('formed party');
     clearInterval(looking_for_party); // Stop querying for solo players
 
     send_coordinates = setInterval(function() {
-      jitter_x = getRandomInt(0, 2);
-      jitter_y = getRandomInt(0, 2);
+      jitter_x = getRandomInt(0, 1);
+      jitter_y = getRandomInt(0, 1);
       socket.emit('cur coord', {
         x: cur_x + jitter_x,
         y: cur_y + jitter_y
@@ -138,30 +124,34 @@ $(function() {
     }, PING_FREQUENCY * 1000);
   });
 
-  socket.on('quest disband', function () {
-    log('Quest disbanded. Looking for other solo players.');
-    clearInterval(send_coordinates);
+  // socket.on('quest disband', function () {
+  //   log('Quest disbanded. Looking for other solo players.');
+  //   clearInterval(send_coordinates);
     
-    socket.emit('looking for party');
-    looking_for_party = setInterval(function() {
-      socket.emit('who is solo');
-    }, PING_FREQUENCY * 1000);
-  });
+  //   socket.emit('looking for party');
+  //   looking_for_party = setInterval(function() {
+  //     socket.emit('who is solo');
+  //   }, PING_FREQUENCY * 1000);
+  // });
 
-  socket.on('party on obj', function () {
-    log('Party has reached the objective!');
+  socket.on('party on obj', function (data) {
+    // Stop pinging coords to server and remove socket from questing and add to fighting
+    clearInterval(send_coordinates);
     socket.emit('fighting boss');
-    clearInterval(send_coordinates);
+
+    var bossType = data.bossType;
+    var bossHealth = data.bossHealth;
+    log('Party has reached the objective! Fighting a ' + bossType + ' with ' + bossHealth + ' health.');
   });
 
-  socket.on('fight disband', function () {
-    log('Fight disbanded. Looking for other solo players.');
+  // socket.on('fight disband', function () {
+  //   log('Fight disbanded. Looking for other solo players.');
     
-    socket.emit('looking for party');
-    looking_for_party = setInterval(function() {
-      socket.emit('who is solo');
-    }, PING_FREQUENCY * 1000);
-  });
+  //   socket.emit('looking for party');
+  //   looking_for_party = setInterval(function() {
+  //     socket.emit('who is solo');
+  //   }, PING_FREQUENCY * 1000);
+  // });
 
   socket.on('boss hit', function (data) {
     addChatMessage(data);
@@ -173,7 +163,7 @@ $(function() {
     socket.emit('looking for party');
     log('Looking for other solo members...');
     looking_for_party = setInterval(function() {
-      socket.emit('who is solo');
+      socket.emit('get solos');
     }, PING_FREQUENCY * 1000);
   });
 
@@ -184,14 +174,12 @@ $(function() {
 
   // Whenever the server emits 'user joined', log it in the chat body
   socket.on('user joined', function (data) {
-    log(data.username + ', ' + data.socketid + ', joined');
-    addParticipantsMessage(data);
+    log(data.username + ' logged in.');
   });
 
   // Whenever the server emits 'user left', log it in the chat body
   socket.on('user left', function (data) {
     log(data.username + ' left');
-    addParticipantsMessage(data);
   });
 
   socket.on('disconnect', function () {

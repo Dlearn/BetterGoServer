@@ -35,7 +35,7 @@ io.on('connection', function (socket) {
       // TODO: Check no repeated usernames
       socket.username = data.username;
     }
-    else socket.username = 'user'+numUsers.toString();
+    else socket.username = 'DesktopUser'+numUsers.toString();
     console.log('User ' + socket.username + ' connected.');
     ++numUsers;
 
@@ -63,14 +63,12 @@ io.on('connection', function (socket) {
 
       // This socket is logged in.
       socket.emit('login', {
-        numUsers: numUsers
+        username: socket.username,
       });
 
       // echo globally (all clients) that a person has connected
       socket.broadcast.emit('user joined', {
         username: socket.username,
-        socketid: socket.id,
-        numUsers: numUsers
       });
     }
   });
@@ -97,6 +95,7 @@ io.on('connection', function (socket) {
       socket.emit('form party', {
         inviter: socket.username,
         invitee: data.username,
+        // TODO: OBJECTIVE COORDS
         //obj: objCoodinates
       });
       
@@ -132,9 +131,7 @@ io.on('connection', function (socket) {
     // Disconnection policy
     if (questPlayers.length !== 2) 
     {
-      // console.log('Party member disconnected. Disbanding quest.');
-      // socket.emit('quest disband');
-      console.log('waiting for party to reconnect...');
+      console.log('Warning: Curcoord needs 2 people.');
     } else
     {
       var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
@@ -143,12 +140,23 @@ io.on('connection', function (socket) {
       console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
       if (distance <= 1) 
       {
+        // TODO: socket.index is badly implemented
         questPlayers[socket.index].arrived_at_obj = true;
+        
+        // TODO: Currently, only 2 players are allowd. Implement more players?
         var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
         if (allArrived) 
         {
           console.log('Party has arrived at the objective and will fight boss!');
-          io.to('quest').emit('party on obj');
+          
+          fightPlayers[0] = 100;
+
+          // Tell clients bossInfo
+          io.to('quest').emit('party on obj', {
+            // TODO: Not hardcoded
+            bossType: 'Smail',
+            bossHealth: 100
+          });
         }
       } else
       {
@@ -161,7 +169,6 @@ io.on('connection', function (socket) {
     // Remove from questPlayers
     questPlayers.removeSocketObj(socket.username);
 
-    fightPlayers[0] = 100;
     // Add to fightPlayers
     socket.index = fightPlayers.length;
     fightPlayers.push({
@@ -177,9 +184,7 @@ io.on('connection', function (socket) {
     // Disconnection policy
     if (fightPlayers.length !== 3) 
     {
-      // console.log('Party member disconnected. Disbanding fight.');
-      // socket.emit('fight disband');
-      console.log('waiting for party to reconnect...');
+      console.log('Warning: Fight needs 2 people.');
     } else if(socket.rooms['fight']) 
     {
       fightPlayers[0] -= data.damage;
@@ -188,15 +193,11 @@ io.on('connection', function (socket) {
       
       io.to('fight').emit('boss hit', {
         username: socket.username,
-        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.'
+        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.',
+        remainingHealth: fightPlayers[0]
       });
       if (fightPlayers[0] <= 0) io.to('fight').emit('boss defeated');
     } 
-    // TODO: REMOVE REDUNDANT ON APP
-    else socket.emit('new message', {
-      username: socket.username,
-      message: 'But you aren\'t fighting anything'
-    });
   });
 
   socket.on('looking for party', function () {
@@ -233,31 +234,9 @@ io.on('connection', function (socket) {
 
   // when the client emits 'new message', this listens and executes
   socket.on('new message', function (data) {
-
     data = data.split(/[ ]+/);
 
-    if (data[0] === 'w')
-    {
-      // Whisper someone
-      var whispereeUsername = data[1];
-      var message = data[2];
-      var whispereeId = userList.getSocketObj(whispereeUsername).socketid;
-      if (whispereeId)
-      {
-        // Show message in own chat window
-        socket.emit('new message', {
-          username: socket.username + ' to ' + whispereeUsername,
-          message: message
-        });
-
-        // Show message in target chat window
-        socket.broadcast.to(whispereeId).emit('new message', {
-          username: socket.username + ' to ' + whispereeUsername,
-          message: message
-        });
-      } 
-    }
-    else if (data[0] === 'getSolo') socket.emit('console', soloPlayers);
+    if (data[0] === 'getSolo') socket.emit('console', soloPlayers);
     else if (data[0] === 'getQuest') socket.emit('console', questPlayers);
     else if (data[0] === 'getFight') socket.emit('console', fightPlayers);
     else if (data[0] === 'rooms') socket.emit('console', socket.rooms);
