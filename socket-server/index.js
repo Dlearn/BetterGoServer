@@ -128,7 +128,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('cur coord', function (cur_coord) {
-    // Disconnection policy
+    // TODO: Check disconnection whether works
     if (questPlayers.length !== 2) 
     {
       console.log('Warning: Curcoord needs 2 people.');
@@ -181,7 +181,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('attack', function (data) {
-    // Disconnection policy
+    // TODO: Check disconnection whether works
     if (fightPlayers.length !== 3) 
     {
       console.log('Warning: Fight needs 2 people.');
@@ -192,9 +192,9 @@ io.on('connection', function (socket) {
       console.log(socket.username + ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.');
       
       io.to('fight').emit('boss hit', {
+        remainingHealth: fightPlayers[0],
         username: socket.username,
-        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.',
-        remainingHealth: fightPlayers[0]
+        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.'
       });
       if (fightPlayers[0] <= 0) io.to('fight').emit('boss defeated');
     } 
