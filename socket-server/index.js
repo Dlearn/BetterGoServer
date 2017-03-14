@@ -32,45 +32,35 @@ io.on('connection', function (socket) {
     // we store the username in the socket session for this client
     if (data) 
     {
-      // TODO: Check no repeated usernames
+      var repeatedSolo = soloPlayers.getSocketObj(data.username);
+      var repeatedQuest = questPlayers.getSocketObj(data.username);
+      var repeatedFight = fightPlayers.getSocketObj(data.username);
+
+      // No repeated usernames
+      if (repeatedSolo || repeatedQuest || repeatedFight) return;
       socket.username = data.username;
     }
     else socket.username = 'DesktopUser'+numUsers.toString();
+
     console.log('User ' + socket.username + ' connected.');
-    ++numUsers;
+    numUsers++;
+    
+    socket.join('solo');
+    socket.index = soloPlayers.length;
+    soloPlayers.push({
+      username: socket.username,
+      socketid: socket.id
+    });
 
-    var questPlayer = questPlayers.getSocketObj(socket.username);
-    var fightPlayer = fightPlayers.getSocketObj(socket.username);
-    if (questPlayer)
-    {
-      console.log('questPlayer' + socket.username + ' reconnected');
-      questPlayer.socketid = socket.id;
-      questPlayer.connected = true;
-    } else if (fightPlayer)
-    {
-      console.log('fightPlayer' + socket.username + ' reconnected');
-      fightPlayer.socketid = socket.id;
-      fightPlayer.connected = true;
-    } else
-    {
-      // Add to room 'solo'
-      socket.join('solo');
-      socket.index = soloPlayers.length;
-      soloPlayers.push({
-        username: socket.username,
-        socketid: socket.id
-      });
+    // Show this client the welcome message
+    socket.emit('login', {
+      username: socket.username,
+    });
 
-      // Show this client the welcome message
-      socket.emit('login', {
-        username: socket.username,
-      });
-
-      // echo globally (all clients) that a person has connected
-      socket.broadcast.emit('user joined', {
-        username: socket.username,
-      });
-    }
+    // echo globally (all clients) that a person has connected
+    socket.broadcast.emit('user joined', {
+      username: socket.username,
+    });
   });
 
   // Client queries server who is solo
@@ -143,16 +133,34 @@ io.on('connection', function (socket) {
         var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
         if (allArrived) 
         {
+          questPlayers[socket.index].arrived_at_obj = false;
           console.log('Party has arrived at the objective and will fight boss!');
           
-          fightPlayers[0] = 100;
-
           // Tell clients bossInfo
-          io.to('quest').emit('party on obj', {
-            // TODO: Not hardcoded
-            bossType: 'Smail',
-            bossHealth: 100
-          });
+          var randomBoss = getRandomInt(0,2);
+          var bossType, bossHealth;
+          switch(randomBoss) {
+            case 0:
+              io.to('quest').emit('party on obj', {
+                bossType: 'RedKnight',
+                bossHealth: 90
+              });
+              fightPlayers[0] = 90;
+              break;
+            case 1:
+              io.to('quest').emit('party on obj', {
+                bossType: 'Smail',
+                bossHealth: 80
+              });
+              fightPlayers[0] = 80;
+              break;
+            default:
+              io.to('quest').emit('party on obj', {
+                bossType: 'LianHwa',
+                bossHealth: 110
+              });
+              fightPlayers[0] = 110;
+          }
         }
       } else
       {
@@ -256,6 +264,11 @@ io.on('connection', function (socket) {
     }
   });
 });
+
+// Returns a random integer between min (inclusive) and max (inclusive)
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 Array.prototype.getSocketObj = function (username) {
    for (i in this) {
