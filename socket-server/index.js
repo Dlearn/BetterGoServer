@@ -171,6 +171,7 @@ io.on('connection', function (socket) {
 
     // Add to fightPlayers
     socket.index = fightPlayers.length;
+    console.log('Adding to fightPlayers');
     fightPlayers.push({
       username: socket.username,
       socketid: socket.id,
@@ -184,6 +185,7 @@ io.on('connection', function (socket) {
     // TODO: Check disconnection whether works
     if (fightPlayers.length !== 3) 
     {
+      socket.emit('console', fightPlayers);
       console.log('Warning: Fight needs 2 people.');
     } else if(socket.rooms['fight']) 
     {
