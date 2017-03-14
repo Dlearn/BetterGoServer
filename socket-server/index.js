@@ -61,7 +61,7 @@ io.on('connection', function (socket) {
         socketid: socket.id
       });
 
-      // This socket is logged in.
+      // Show this client the welcome message
       socket.emit('login', {
         username: socket.username,
       });
@@ -90,7 +90,6 @@ io.on('connection', function (socket) {
     var invitee_id = soloPlayers.getSocketObj(data.username).socketid;
     if (invitee_id)
     {
-      console.log(socket.username + ' has invited ' + data.username + ' to a party!');
       // Inviter forms a party
       socket.emit('form party', {
         inviter: socket.username,
@@ -108,9 +107,6 @@ io.on('connection', function (socket) {
   });
 
   socket.on('formed party', function () {
-    // TODO: Remove consolelog
-    console.log(socket.username + ' has joined a party!');
-
     // Remove from soloPlayers
     soloPlayers.removeSocketObj(socket.username);
 
@@ -137,7 +133,7 @@ io.on('connection', function (socket) {
       var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
       var y_sqr = (objCoodinates.y - cur_coord.y) * (objCoodinates.y - cur_coord.y);
       var distance = Math.sqrt(x_sqr * x_sqr + y_sqr * y_sqr);
-      console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
+      //console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
       if (distance <= 1) 
       {
         // TODO: socket.index is badly implemented
@@ -172,6 +168,10 @@ io.on('connection', function (socket) {
     // Add to fightPlayers
     socket.index = fightPlayers.length;
     console.log('Adding to fightPlayers');
+    if (fightPlayers.getSocketObj(socket.username)) {
+      console.log('Already contains this username');
+      return;
+    }
     fightPlayers.push({
       username: socket.username,
       socketid: socket.id,
@@ -223,8 +223,12 @@ io.on('connection', function (socket) {
       --numUsers;
 
       soloPlayers.removeSocketObj(socket.username);
-      if(socket.rooms['quest']) questPlayers.getSocketObj(socket.username).connected = false;
-      else if(socket.rooms['fight']) fightPlayers.getSocketObj(socket.username).connected = false;
+      questPlayers.removeSocketObj(socket.username);
+      fightPlayers.removeSocketObj(socket.username);
+
+      // TODO: Check and implement disconnection policy
+      // if(socket.rooms['quest']) questPlayers.getSocketObj(socket.username).connected = false;
+      // else if(socket.rooms['fight']) fightPlayers.getSocketObj(socket.username).connected = false;
 
       // echo globally that this client has left
       socket.broadcast.emit('user left', {
