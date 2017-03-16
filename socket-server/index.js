@@ -27,7 +27,12 @@ io.on('connection', function (socket) {
   // when the client emits 'add user', this listens and executes
   socket.on('add user', function (username) {
     // Potential Bug: Unable to handle repeat usernames
-    if (addedUser) return;
+
+    if (addedUser) // No double connections
+    {
+      console.log('WARNING: Double connection attempted.');
+      return; 
+    }
     addedUser = true;
     numUsers++;
 
@@ -54,7 +59,6 @@ io.on('connection', function (socket) {
     
     
     socket.join('solo');
-    socket.index = soloPlayers.length;
     soloPlayers.push({
       username: socket.username,
       socketid: socket.id
@@ -82,8 +86,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('invite', function (data) {
-    if (socket.username === data.username) return;
-    // Invite a user into a room.
+    if (socket.username === data.username) return; // Cannot invite yourself
 
     // Find invitee's socketid
     var invitee_id = soloPlayers.getSocketObj(data.username).socketid;
@@ -125,7 +128,6 @@ io.on('connection', function (socket) {
     soloPlayers.removeSocketObj(socket.username);
 
     // Add to questPlayers
-    socket.index = questPlayers.length;
     questPlayers.push({
       username: socket.username,
       socketid: socket.id,
@@ -139,7 +141,7 @@ io.on('connection', function (socket) {
 
   socket.on('has arrived', function (arrivedAtObj) {
     if (!socket.username) {
-      console.log("Not supposed to happen because username should be redefined.");
+      console.log("ERROR: Not supposed to happen because username should be redefined.");
       return;
     }
     
@@ -157,12 +159,12 @@ io.on('connection', function (socket) {
     
     // Username is defined AND both are currently connected
     console.log(socket.username + ' has arrived: ' + arrivedAtObj);  
-    questPlayers[socket.index].arrived_at_obj = arrivedAtObj;
+    questPlayers.getSocketObj(socket.username).arrivedAtObj = arrivedAtObj;
     
     var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
     if (allArrived) 
     {
-      questPlayers[socket.index].arrived_at_obj = false; // To prevent other player from also realizing that both are done
+      questPlayers.getSocketObj(socket.username).arrivedAtObj = false; // To prevent other player from also realizing that both are done
       console.log('Party has arrived at the objective and will fight boss!');
       
       // The server randomize a boss for clients
@@ -193,13 +195,9 @@ io.on('connection', function (socket) {
     // Remove from questPlayers
     questPlayers.removeSocketObj(socket.username);
 
-    // Add to fightPlayers
-    socket.index = fightPlayers.length;
-    console.log('Adding to fightPlayers');
-
     // Safety: Weird bugs happen because double adding
     if (fightPlayers.getSocketObj(socket.username)) {
-      console.log('Already contains this username');
+      console.log('Warning: Already contains this username');
       return;
     }
     fightPlayers.push({
@@ -239,7 +237,6 @@ io.on('connection', function (socket) {
     fightPlayers.removeSocketObj(socket.username);
 
     socket.join('solo');
-    socket.index = soloPlayers.length;
     soloPlayers.push({
       username: socket.username,
       socketid: socket.id,
