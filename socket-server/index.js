@@ -88,19 +88,16 @@ io.on('connection', function (socket) {
        * Cafe Agora
        * Library Main Staircase
        */
-      // Inviter forms a party
-      socket.emit('form party', {
-        obj: 'Dylan\'s Room', 
+
+      var payload = {
+        obj: 'Cafe Agora', 
         inviter: socket.username,
         invitee: data.username,
-      });
-      
-      // Invitee forms a party
-      socket.broadcast.to(invitee_id).emit('form party', {
-        obj: 'Dylan\'s Room',
-        inviter: socket.username,
-        invitee: data.username,
-      });
+      }
+      // Inviter joins the party
+      socket.emit('form party', payload);
+      // Invitee joins the party
+      socket.broadcast.to(invitee_id).emit('form party', payload);
     }
   });
 
