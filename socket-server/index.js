@@ -89,8 +89,18 @@ io.on('connection', function (socket) {
        * Library Main Staircase
        */
 
+      var randomObj = getRandomInt(0,2);
+      var objLocation = '';
+      switch(randomObj) {
+        case 0:
+          objLocation = 'MPH'
+          break;
+        default:
+          objLocation = 'Library'
+      }
+
       var payload = {
-        obj: 'Cafe Agora', 
+        obj: objLocation,
         inviter: socket.username,
         invitee: data.username,
       }
@@ -136,29 +146,25 @@ io.on('connection', function (socket) {
         
         // Tell clients bossInfo
         var randomBoss = getRandomInt(0,2);
-        var bossType, bossHealth;
+        var bossType = '', bossHealth = 0;
         switch(randomBoss) {
           case 0:
-            io.to('quest').emit('party on obj', {
-              bossType: 'RedKnight',
-              bossHealth: 90
-            });
-            fightPlayers[0] = 90;
+            bossType = 'RedKnight';
+            bossHealth = 90;
             break;
           case 1:
-            io.to('quest').emit('party on obj', {
-              bossType: 'Smail',
-              bossHealth: 80
-            });
-            fightPlayers[0] = 80;
+            bossType = 'Smail';
+            bossHealth = 80;
             break;
           default:
-            io.to('quest').emit('party on obj', {
-              bossType: 'LianHwa',
-              bossHealth: 110
-            });
-            fightPlayers[0] = 110;
+            bossType = 'LianHwa';
+            bossHealth = 110;
         }
+        io.to('quest').emit('party on obj', {
+          bossType: bossType,
+          bossHealth: bossHealth
+        });
+        fightPlayers[0] = bossHealth;
       }
     }
   });
