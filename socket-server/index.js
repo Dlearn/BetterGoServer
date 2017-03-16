@@ -119,6 +119,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('has arrived', function (arrivedAtObj) {
+    console.log(socket.username + ' has arrived: ' + arrivedAtObj);
     if (questPlayers.length !== 2) 
     {
       console.log('Warning: Curcoord needs 2 people.');
