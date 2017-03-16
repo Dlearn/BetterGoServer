@@ -130,6 +130,9 @@ io.on('connection', function (socket) {
 
   socket.on('has arrived', function (arrivedAtObj) {
     console.log(socket.username + ' has arrived: ' + arrivedAtObj);
+    // SAFETY: If undefined behavior, stop.
+    if (!socket.username) return;
+
     if (questPlayers.length !== 2) 
     {
       console.log('Warning: Curcoord needs 2 people.');
