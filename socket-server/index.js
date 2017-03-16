@@ -133,9 +133,12 @@ io.on('connection', function (socket) {
   });
 
   socket.on('has arrived', function (arrivedAtObj) {
-    console.log(socket.username + ' has arrived: ' + arrivedAtObj);
     // SAFETY: If undefined behavior, stop.
-    if (!socket.username) return;
+    if (!socket.username) {
+      console.log("Not supposed to happen because username should be redefined.");
+      return;
+    }
+    console.log(socket.username + ' has arrived: ' + arrivedAtObj);
 
     if (questPlayers.length !== 2) 
     {
@@ -143,7 +146,13 @@ io.on('connection', function (socket) {
     } else
     {
       questPlayers[socket.index].arrived_at_obj = arrivedAtObj;
-        
+      
+      if (!questPlayers[0].connected || !questPlayers[1].connected) 
+      {
+        console.log('Someone isn\'t connected');
+        return;
+      }
+
       // TODO: Currently, only 2 players are allowd. Implement more players?
       var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
       if (allArrived) 
@@ -204,8 +213,9 @@ io.on('connection', function (socket) {
     {
       socket.emit('console', fightPlayers);
       console.log('Warning: Fight needs 2 people.');
-    } else if(socket.rooms['fight']) 
+    } else
     {
+      // TODO: DO WE NEED TO CHECK FOR DISCONNECTION POLICY?
       fightPlayers[0] -= data.damage;
       fightPlayers[0] = Math.max(0, fightPlayers[0]);
       console.log(socket.username + ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.');
