@@ -26,27 +26,32 @@ io.on('connection', function (socket) {
 
   // when the client emits 'add user', this listens and executes
   socket.on('add user', function (username) {
+    // Potential Bug: Unable to handle repeat usernames
     if (addedUser) return;
     addedUser = true;
+    numUsers++;
 
     // we store the username in the socket session for this client
     if (username) 
     {
-      var repeatedSolo = soloPlayers.getSocketObj(username);
-      var repeatedQuest = questPlayers.getSocketObj(username);
-      var repeatedFight = fightPlayers.getSocketObj(username);
-
-      // No repeated usernames
-      if (repeatedSolo || repeatedQuest || repeatedFight) {
-        console.log('DISASTER');
+      socket.username = username;
+      if (questPlayers.getSocketObj(username)) 
+      {
+        console.log('User ' + socket.username + ' reconnected to quest.');
+        questPlayers.getSocketObj(username).connected = true;
         return;
       }
-      socket.username = username;
+      else if (fightPlayers.getSocketObj(username)) 
+      {
+        console.log('User ' + socket.username + ' should be reconnected to fight.');
+        fightPlayers.getSocketObj(username).connected = true;
+        return; 
+      }
     }
     else socket.username = 'DesktopUser'+numUsers.toString();
 
-    console.log('User ' + socket.username + ' connected.');
-    numUsers++;
+    console.log('User ' + socket.username + ' connected to solo pool.');
+    
     
     socket.join('solo');
     socket.index = soloPlayers.length;
@@ -133,55 +138,54 @@ io.on('connection', function (socket) {
   });
 
   socket.on('has arrived', function (arrivedAtObj) {
-    // SAFETY: If undefined behavior, stop.
     if (!socket.username) {
       console.log("Not supposed to happen because username should be redefined.");
       return;
     }
-    console.log(socket.username + ' has arrived: ' + arrivedAtObj);
-
+    
     if (questPlayers.length !== 2) 
     {
-      console.log('Warning: Curcoord needs 2 people.');
-    } else
-    {
-      questPlayers[socket.index].arrived_at_obj = arrivedAtObj;
-      
-      if (!questPlayers[0].connected || !questPlayers[1].connected) 
-      {
-        console.log('Someone isn\'t connected');
-        return;
-      }
+      console.log('Waiting for both players to join quest.');
+      return;
+    } 
 
-      // TODO: Currently, only 2 players are allowd. Implement more players?
-      var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
-      if (allArrived) 
-      {
-        questPlayers[socket.index].arrived_at_obj = false;
-        console.log('Party has arrived at the objective and will fight boss!');
-        
-        // Tell clients bossInfo
-        var randomBoss = getRandomInt(0,2);
-        var bossType = '', bossHealth = 0;
-        switch(randomBoss) {
-          case 0:
-            bossType = 'RedKnight';
-            bossHealth = 90;
-            break;
-          case 1:
-            bossType = 'Smail';
-            bossHealth = 80;
-            break;
-          default:
-            bossType = 'LianHwa';
-            bossHealth = 110;
-        }
-        io.to('quest').emit('party on obj', {
-          bossType: bossType,
-          bossHealth: bossHealth
-        });
-        fightPlayers[0] = bossHealth;
+    if (!questPlayers[0].connected || !questPlayers[1].connected) 
+    {
+      console.log('Someone isn\'t connected');
+      return;
+    }
+    
+    // Username is defined AND both are currently connected
+    console.log(socket.username + ' has arrived: ' + arrivedAtObj);  
+    questPlayers[socket.index].arrived_at_obj = arrivedAtObj;
+    
+    var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
+    if (allArrived) 
+    {
+      questPlayers[socket.index].arrived_at_obj = false; // To prevent other player from also realizing that both are done
+      console.log('Party has arrived at the objective and will fight boss!');
+      
+      // The server randomize a boss for clients
+      var randomBoss = getRandomInt(0,2);
+      var bossType = '', bossHealth = 0;
+      switch(randomBoss) {
+        case 0:
+          bossType = 'RedKnight';
+          bossHealth = 90;
+          break;
+        case 1:
+          bossType = 'Smail';
+          bossHealth = 80;
+          break;
+        default:
+          bossType = 'LianHwa';
+          bossHealth = 110;
       }
+      io.to('quest').emit('party on obj', {
+        bossType: bossType,
+        bossHealth: bossHealth
+      });
+      fightPlayers[0] = bossHealth;
     }
   });
 
@@ -208,7 +212,6 @@ io.on('connection', function (socket) {
   });
 
   socket.on('attack', function (data) {
-    // TODO: Check disconnection whether works
     if (fightPlayers.length !== 3) 
     {
       socket.emit('console', fightPlayers);
@@ -246,17 +249,18 @@ io.on('connection', function (socket) {
   // when the user disconnects.. perform this
   socket.on('disconnect', function () {
     if (addedUser) {
-      console.log('User ' + socket.username + ' discconnected.');
+      console.log('User ' + socket.username + ' disconnected.');
       --numUsers;
 
       soloPlayers.removeSocketObj(socket.username);
-      if(socket.rooms['quest']) questPlayers.getSocketObj(socket.username).connected = false;
-      else if(socket.rooms['fight']) fightPlayers.getSocketObj(socket.username).connected = false;
+      if(questPlayers.getSocketObj(socket.username)) 
+        questPlayers.getSocketObj(socket.username).connected = false;
+      else if(fightPlayers.getSocketObj(socket.username)) 
+        fightPlayers.getSocketObj(socket.username).connected = false;
 
       // echo globally that this client has left
       socket.broadcast.emit('user left', {
         username: socket.username,
-        numUsers: numUsers
       });
     }
   });
