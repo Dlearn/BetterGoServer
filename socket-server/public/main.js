@@ -8,15 +8,15 @@ $(function() {
   ];
 
   // Initialize variables
+  var socket = io();
   var $window = $(window);
   var $chatPage = $('.chat.page'); // The chatroom page
   var $messages = $('.messages'); // Messages area
   var $inputMessage = $('.inputMessage'); // Input message input box
-
-  var connected = false;
   var $currentInput = $inputMessage.focus();
 
-  var socket = io();
+  var connected = false;
+  var arrivedAtObj = false;
 
   // Log a message
   function log (message) {
@@ -78,6 +78,10 @@ $(function() {
         message_parts = message.split(/[ ]+/);
         if (message_parts[0] === 'invite') socket.emit('invite', { username: message_parts[1] });
         else if (message_parts[0] === 'attack') socket.emit('attack', { damage: getRandomInt(10, 30) });
+        else if (message_parts[0] === 'arrive') {
+          log('Arrived at the objective.');
+          arrivedAtObj = true;
+        }
         else socket.emit('new message', message);
       }
     }
@@ -102,66 +106,45 @@ $(function() {
   });
 
   socket.on('solo players', function(data) {
-    var message = '';
     console.log(data);
   });
 
   socket.on('form party', function (quest) {
     log(quest.inviter + ' has formed a questing party with ' + quest.invitee + '!');
-    log('Walking around...');
+    log('Your objective is ' + quest.obj);
 
-    // TODO: Set quest.obj map marker on map
-    socket.emit('formed party');
-    clearInterval(looking_for_party); // Stop querying for solo players
+    // Stop querying for solo players
+    clearInterval(looking_for_party); 
+    // Transition from Solo to Quest
+    socket.emit('transition quest');
 
-    send_coordinates = setInterval(function() {
-      jitter_x = getRandomInt(0, 1);
-      jitter_y = getRandomInt(0, 1);
-      socket.emit('cur coord', {
-        x: cur_x + jitter_x,
-        y: cur_y + jitter_y
-      });
+    send_arrived = setInterval(function() {
+      socket.emit('has arrived', arrivedAtObj);
     }, PING_FREQUENCY * 1000);
   });
 
-  // socket.on('quest disband', function () {
-  //   log('Quest disbanded. Looking for other solo players.');
-  //   clearInterval(send_coordinates);
-    
-  //   socket.emit('looking for party');
-  //   looking_for_party = setInterval(function() {
-  //     socket.emit('who is solo');
-  //   }, PING_FREQUENCY * 1000);
-  // });
-
   socket.on('party on obj', function (data) {
-    // Stop pinging coords to server and remove socket from questing and add to fighting
-    clearInterval(send_coordinates);
-    socket.emit('fighting boss');
+    // Stop sending arrived to server 
+    clearInterval(send_arrived);
+    // Transition from Quest to Fight
+    socket.emit('transition fight');
 
     var bossType = data.bossType;
     var bossHealth = data.bossHealth;
     log('Party has reached the objective! Fighting a ' + bossType + ' with ' + bossHealth + ' health.');
   });
 
-  // socket.on('fight disband', function () {
-  //   log('Fight disbanded. Looking for other solo players.');
-    
-  //   socket.emit('looking for party');
-  //   looking_for_party = setInterval(function() {
-  //     socket.emit('who is solo');
-  //   }, PING_FREQUENCY * 1000);
-  // });
-
   socket.on('boss hit', function (data) {
     addChatMessage(data);
   });
 
   socket.on('boss defeated', function (){
+    // TODO: Rewards
     log('CONGRATULATIONS! BOSS DEFEATED! HERE ARE YOUR REWARDS...');
 
-    socket.emit('looking for party');
-    log('Looking for other solo members...');
+    arrivedAtObj = false;
+    socket.emit('back transition solo');
+    log('Back to looking for other solo members...');
     looking_for_party = setInterval(function() {
       socket.emit('get solos');
     }, PING_FREQUENCY * 1000);

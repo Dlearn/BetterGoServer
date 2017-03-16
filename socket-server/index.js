@@ -80,23 +80,31 @@ io.on('connection', function (socket) {
     var invitee_id = soloPlayers.getSocketObj(data.username).socketid;
     if (invitee_id)
     {
+      /*
+       * Dylan\'s Room
+       * Saga Courtyard
+       * Elm Courtyard
+       * Cendana Courtyard
+       * Cafe Agora
+       * Library Main Staircase
+       */
       // Inviter forms a party
       socket.emit('form party', {
+        obj: 'Dylan\'s Room', 
         inviter: socket.username,
         invitee: data.username,
-        // TODO: OBJECTIVE COORDS
-        //obj: objCoodinates
       });
       
       // Invitee forms a party
       socket.broadcast.to(invitee_id).emit('form party', {
+        obj: 'Dylan\'s Room',
         inviter: socket.username,
-        invitee: data.username
+        invitee: data.username,
       });
     }
   });
 
-  socket.on('formed party', function () {
+  socket.on('transition quest', function () {
     // Remove from soloPlayers
     soloPlayers.removeSocketObj(socket.username);
 
@@ -113,69 +121,59 @@ io.on('connection', function (socket) {
     socket.join('quest');
   });
 
-  socket.on('cur coord', function (cur_coord) {
-    // TODO: Check disconnection whether works
+  socket.on('has arrived', function (arrivedAtObj) {
     if (questPlayers.length !== 2) 
     {
       console.log('Warning: Curcoord needs 2 people.');
     } else
     {
-      var x_sqr = (objCoodinates.x - cur_coord.x) * (objCoodinates.x - cur_coord.x);
-      var y_sqr = (objCoodinates.y - cur_coord.y) * (objCoodinates.y - cur_coord.y);
-      var distance = Math.sqrt(x_sqr * x_sqr + y_sqr * y_sqr);
-      //console.log(socket.username + ': ' + cur_coord.x + ', ' + cur_coord.y + ' has distance: ' + distance);
-      if (distance <= 1) 
-      {
-        // TODO: socket.index is badly implemented
-        questPlayers[socket.index].arrived_at_obj = true;
+      questPlayers[socket.index].arrived_at_obj = arrivedAtObj;
         
-        // TODO: Currently, only 2 players are allowd. Implement more players?
-        var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
-        if (allArrived) 
-        {
-          questPlayers[socket.index].arrived_at_obj = false;
-          console.log('Party has arrived at the objective and will fight boss!');
-          
-          // Tell clients bossInfo
-          var randomBoss = getRandomInt(0,2);
-          var bossType, bossHealth;
-          switch(randomBoss) {
-            case 0:
-              io.to('quest').emit('party on obj', {
-                bossType: 'RedKnight',
-                bossHealth: 90
-              });
-              fightPlayers[0] = 90;
-              break;
-            case 1:
-              io.to('quest').emit('party on obj', {
-                bossType: 'Smail',
-                bossHealth: 80
-              });
-              fightPlayers[0] = 80;
-              break;
-            default:
-              io.to('quest').emit('party on obj', {
-                bossType: 'LianHwa',
-                bossHealth: 110
-              });
-              fightPlayers[0] = 110;
-          }
-        }
-      } else
+      // TODO: Currently, only 2 players are allowd. Implement more players?
+      var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
+      if (allArrived) 
       {
         questPlayers[socket.index].arrived_at_obj = false;
+        console.log('Party has arrived at the objective and will fight boss!');
+        
+        // Tell clients bossInfo
+        var randomBoss = getRandomInt(0,2);
+        var bossType, bossHealth;
+        switch(randomBoss) {
+          case 0:
+            io.to('quest').emit('party on obj', {
+              bossType: 'RedKnight',
+              bossHealth: 90
+            });
+            fightPlayers[0] = 90;
+            break;
+          case 1:
+            io.to('quest').emit('party on obj', {
+              bossType: 'Smail',
+              bossHealth: 80
+            });
+            fightPlayers[0] = 80;
+            break;
+          default:
+            io.to('quest').emit('party on obj', {
+              bossType: 'LianHwa',
+              bossHealth: 110
+            });
+            fightPlayers[0] = 110;
+        }
       }
     }
   });
 
-  socket.on('fighting boss', function () {
+  socket.on('transition fight', function () {
     // Remove from questPlayers
     questPlayers.removeSocketObj(socket.username);
 
     // Add to fightPlayers
     socket.index = fightPlayers.length;
     console.log('Adding to fightPlayers');
+
+    // Safety: Weird bugs happen because double adding
     if (fightPlayers.getSocketObj(socket.username)) {
       console.log('Already contains this username');
       return;
@@ -210,7 +208,7 @@ io.on('connection', function (socket) {
     } 
   });
 
-  socket.on('looking for party', function () {
+  socket.on('back transition solo', function () {
     socket.leave('quest');
     questPlayers.removeSocketObj(socket.username);
     socket.leave('fight');
