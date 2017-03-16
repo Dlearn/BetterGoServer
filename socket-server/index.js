@@ -132,7 +132,7 @@ io.on('connection', function (socket) {
       username: socket.username,
       socketid: socket.id,
       connected: true,
-      arrived_at_obj: false
+      arrivedAtObj: false
     });
 
     socket.leave('solo');
@@ -161,7 +161,7 @@ io.on('connection', function (socket) {
     console.log(socket.username + ' has arrived: ' + arrivedAtObj);  
     questPlayers.getSocketObj(socket.username).arrivedAtObj = arrivedAtObj;
     
-    var allArrived = questPlayers[0].arrived_at_obj && questPlayers[1].arrived_at_obj;
+    var allArrived = questPlayers[0].arrivedAtObj && questPlayers[1].arrivedAtObj;
     if (allArrived) 
     {
       questPlayers.getSocketObj(socket.username).arrivedAtObj = false; // To prevent other player from also realizing that both are done
@@ -251,7 +251,10 @@ io.on('connection', function (socket) {
 
       soloPlayers.removeSocketObj(socket.username);
       if(questPlayers.getSocketObj(socket.username)) 
+      {
         questPlayers.getSocketObj(socket.username).connected = false;
+        questPlayers.getSocketObj(socket.username).arrivedAtObj = false;
+      }
       else if(fightPlayers.getSocketObj(socket.username)) 
         fightPlayers.getSocketObj(socket.username).connected = false;
 
