@@ -25,20 +25,23 @@ io.on('connection', function (socket) {
   var addedUser = false;
 
   // when the client emits 'add user', this listens and executes
-  socket.on('add user', function (data) {
+  socket.on('add user', function (username) {
     if (addedUser) return;
     addedUser = true;
 
     // we store the username in the socket session for this client
-    if (data) 
+    if (username) 
     {
-      var repeatedSolo = soloPlayers.getSocketObj(data.username);
-      var repeatedQuest = questPlayers.getSocketObj(data.username);
-      var repeatedFight = fightPlayers.getSocketObj(data.username);
+      var repeatedSolo = soloPlayers.getSocketObj(username);
+      var repeatedQuest = questPlayers.getSocketObj(username);
+      var repeatedFight = fightPlayers.getSocketObj(username);
 
       // No repeated usernames
-      if (repeatedSolo || repeatedQuest || repeatedFight) return;
-      socket.username = data.username;
+      if (repeatedSolo || repeatedQuest || repeatedFight) {
+        console.log('DISASTER');
+        return;
+      }
+      socket.username = username;
     }
     else socket.username = 'DesktopUser'+numUsers.toString();
 
@@ -76,7 +79,8 @@ io.on('connection', function (socket) {
   socket.on('invite', function (data) {
     if (socket.username === data.username) return;
     // Invite a user into a room.
-    // Automatically joins the room and causes target user to join a room
+
+    // Find invitee's socketid
     var invitee_id = soloPlayers.getSocketObj(data.username).socketid;
     if (invitee_id)
     {
@@ -236,12 +240,8 @@ io.on('connection', function (socket) {
       --numUsers;
 
       soloPlayers.removeSocketObj(socket.username);
-      questPlayers.removeSocketObj(socket.username);
-      fightPlayers.removeSocketObj(socket.username);
-
-      // TODO: Check and implement disconnection policy
-      // if(socket.rooms['quest']) questPlayers.getSocketObj(socket.username).connected = false;
-      // else if(socket.rooms['fight']) fightPlayers.getSocketObj(socket.username).connected = false;
+      if(socket.rooms['quest']) questPlayers.getSocketObj(socket.username).connected = false;
+      else if(socket.rooms['fight']) fightPlayers.getSocketObj(socket.username).connected = false;
 
       // echo globally that this client has left
       socket.broadcast.emit('user left', {
