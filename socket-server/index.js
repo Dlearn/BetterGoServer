@@ -148,7 +148,14 @@ io.on('connection', function (socket) {
     questPlayer.connected = true;
     questPlayer.arrivedAtObj = arrivedAtObj;
 
-    socket.emit('arrive data', questPlayers);
+    socket.emit('arrive data', {
+      d1user: questPlayers[0].username,
+      d1conn: questPlayers[0].connected,
+      d1arri: questPlayers[0].arrivedAtObj,
+      d2user: questPlayers[1].username,
+      d2conn: questPlayers[1].connected,
+      d2arri: questPlayers[1].arrivedAtObj,
+    });
 
     if (!questPlayers[0].connected)
     {
