@@ -144,21 +144,26 @@ io.on('connection', function (socket) {
       return;
     } 
 
+    var questPlayer = questPlayers.getSocketObj(socket.username);
+    questPlayer.connected = true;
+    questPlayer.arrivedAtObj = arrivedAtObj;
+
+    socket.emit('arrive data', questPlayers);
+
     if (!questPlayers[0].connected)
     {
       console.log(questPlayers[0].username + ' isn\'t connected');
       return;
-    }
-
+    } 
     if(!questPlayers[1].connected) 
-      {
+    {
       console.log(questPlayers[1].username + ' isn\'t connected');
       return;
     }
     
     // Username is defined AND both are currently connected
     console.log(socket.username + ' has arrived: ' + arrivedAtObj);  
-    questPlayers.getSocketObj(socket.username).arrivedAtObj = arrivedAtObj;
+    
     
     var allArrived = questPlayers[0].arrivedAtObj && questPlayers[1].arrivedAtObj;
     if (allArrived) 
