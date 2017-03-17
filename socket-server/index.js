@@ -28,11 +28,9 @@ io.on('connection', function (socket) {
   socket.on('add user', function (username) {
     // Potential Bug: Unable to handle repeat usernames
 
-    if (addedUser) // No double connections
-    {
-      console.log('WARNING: Double connection attempted.');
-      return; 
-    }
+    // No double connections
+    if (addedUser) return; 
+    //console.log('WARNING: Double connection attempted.');  
     addedUser = true;
     numUsers++;
 
@@ -44,20 +42,20 @@ io.on('connection', function (socket) {
       {
         console.log('User ' + socket.username + ' reconnected to quest.');
         questPlayers.getSocketObj(username).connected = true;
+        socket.broadcast.emit('user joined', {
+          username: socket.username,
+        });
         return;
-      }
-      else if (fightPlayers.getSocketObj(username)) 
+      } else if (fightPlayers.getSocketObj(username)) 
       {
-        console.log('User ' + socket.username + ' should be reconnected to fight.');
-        fightPlayers.getSocketObj(username).connected = true;
-        return; 
+        console.log('User ' + socket.username + ' was fighting...');
+        // fightPlayers.getSocketObj(username).connected = true;
+        // return; 
       }
     }
     else socket.username = 'DesktopUser'+numUsers.toString();
 
     console.log('User ' + socket.username + ' connected to solo pool.');
-    
-    
     socket.join('solo');
     soloPlayers.push({
       username: socket.username,
@@ -140,20 +138,21 @@ io.on('connection', function (socket) {
   });
 
   socket.on('has arrived', function (arrivedAtObj) {
-    if (!socket.username) {
-      console.log("ERROR: Not supposed to happen because username should be redefined.");
-      return;
-    }
-    
     if (questPlayers.length !== 2) 
     {
       console.log('Waiting for both players to join quest.');
       return;
     } 
 
-    if (!questPlayers[0].connected || !questPlayers[1].connected) 
+    if (!questPlayers[0].connected)
     {
-      console.log('Someone isn\'t connected');
+      console.log(questPlayers[0].username + ' isn\'t connected');
+      return;
+    }
+
+    if(!questPlayers[1].connected) 
+      {
+      console.log(questPlayers[1].username + ' isn\'t connected');
       return;
     }
     
