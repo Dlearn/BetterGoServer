@@ -46,11 +46,29 @@ io.on('connection', function (socket) {
 
     if (questPlayers.getSocketObj(socket.username)) 
     {
-      // TODO: Check that quest complete, if so, go next.
-      // TODO: Else...
-      questPlayers.getSocketObj(username).connected = true;
-      socket.join('quest');
-      return;
+      if (questPlayers[0]) 
+      {
+        // Remove from questPlayers
+        questPlayers.removeSocketObj(socket.username);
+
+        if (prepPlayers.getSocketObj(socket.username))
+        {
+          console.log('Attempting to double add into prep');
+          return;
+        }
+
+        prepPlayers.push({
+          username: socket.username,
+          ready: false,
+        });
+        socket.leave('quest');
+        socket.join('prep');
+      } else
+      {
+        questPlayers.getSocketObj(username).connected = true;
+        socket.join('quest');
+        return;
+      }
     } 
 
     //console.log('User ' + socket.username + ' connected to solo pool.');
@@ -178,7 +196,7 @@ io.on('connection', function (socket) {
   socket.on('transition prep', function () {
     // Remove from questPlayers
     questPlayers.removeSocketObj(socket.username);
-    
+
     prepPlayers.push({
       username: socket.username,
       ready: false,
