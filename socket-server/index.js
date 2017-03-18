@@ -125,6 +125,9 @@ io.on('connection', function (socket) {
         case 0:
           objLocation = 'MPH'
           break;
+        case 1:
+          objLocation = 'Cendana'
+          break;
         default:
           objLocation = 'Library'
       }
