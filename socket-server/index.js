@@ -119,17 +119,26 @@ io.on('connection', function (socket) {
        * Library
        */
 
-      var randomObj = getRandomInt(0,2);
+      var randomObj = getRandomInt(0,5);
       var objLocation = '';
       switch(randomObj) {
         case 0:
-          objLocation = 'MPH'
+          objLocation = 'Saga'
           break;
         case 1:
-          objLocation = 'Cendana'
+          objLocation = 'Dean of Faculty Office'
           break;
-        default:
+        case 2:
+          objLocation = 'Elm'
+          break;
+        case 3:
           objLocation = 'Library'
+          break;
+        case 4:
+          objLocation = 'MPH'
+          break;
+        default: // Cendana
+          objLocation = 'Cendana'
       }
 
       var payload = {
