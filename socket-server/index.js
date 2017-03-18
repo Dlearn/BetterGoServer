@@ -206,15 +206,15 @@ io.on('connection', function (socket) {
   });
 
   socket.on('is ready', function (playerReady) {
+    var prepPlayer = prepPlayers.getSocketObj(socket.username);
+    prepPlayer.ready = playerReady;
+    
     if (prepPlayers.length !== 2) 
     {
       console.log('Waiting for both players to join prep.');
       return;
     } 
 
-    var prepPlayer = prepPlayers.getSocketObj(socket.username);
-    prepPlayer.ready = playerReady;
-    
     var allReady = prepPlayers[0].ready && prepPlayers[1].ready;
     if (allReady) {
       prepPlayers[0].ready = false; // To prevent other player from also realizing that both are ready

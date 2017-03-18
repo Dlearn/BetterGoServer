@@ -16,7 +16,6 @@ $(function() {
 
   var connected = false;
   var arrivedAtObj = false;
-  var playerReady = false;
 
   // Log a message
   function log (message) {
@@ -84,7 +83,7 @@ $(function() {
         }
         else if (message_parts[0] === 'ready') {
           log('You are ready.');
-          playerReady = true;
+          socket.emit('is ready', true);
         }
         else socket.emit('new message', message);
       }
@@ -124,15 +123,9 @@ $(function() {
     // Stop sending arrived to server 
     clearInterval(send_arrived);
     socket.emit('transition prep');
-
-    send_ready = setInterval(function() {
-      socket.emit('is ready', playerReady);
-    }, PING_FREQUENCY * 1000);
   });
 
   socket.on('spawn boss', function (data) {
-    // Stop sending ready to server
-    clearInterval(send_ready);
     socket.emit('transition fight');
 
     var bossType = data.bossType;
@@ -149,7 +142,6 @@ $(function() {
     log('CONGRATULATIONS! BOSS DEFEATED! HERE ARE YOUR REWARDS...');
 
     arrivedAtObj = false;
-    playerReady = false;
     socket.emit('back transition solo');
     log('Back to looking for other solo members...');
     looking_for_party = setInterval(function() {
