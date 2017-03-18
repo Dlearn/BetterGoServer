@@ -104,10 +104,6 @@ $(function() {
     }, PING_FREQUENCY * 1000);
   });
 
-  socket.on('solo players', function(data) {
-    console.log(data);
-  });
-
   socket.on('form party', function (quest) {
     log(quest.inviter + ' has formed a questing party with ' + quest.invitee + '!');
     log('Your objective is ' + quest.obj);

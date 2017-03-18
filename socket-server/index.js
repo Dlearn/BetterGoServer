@@ -26,7 +26,7 @@ io.on('connection', function (socket) {
 
   // when the client emits 'add user', this listens and executes
   socket.on('add user', function (username) {
-    // Potential Bug: Unable to handle repeat usernames
+    console.log('Attempted connection by ' + username);
 
     // No double connections
     if (addedUser) return; 
@@ -40,7 +40,7 @@ io.on('connection', function (socket) {
       socket.username = username;
       if (questPlayers.getSocketObj(username)) 
       {
-        console.log('User ' + socket.username + ' reconnected to quest.');
+        //console.log('User ' + socket.username + ' reconnected to quest.');
         questPlayers.getSocketObj(username).connected = true;
         socket.broadcast.emit('user joined', {
           username: socket.username,
@@ -48,14 +48,14 @@ io.on('connection', function (socket) {
         return;
       } else if (fightPlayers.getSocketObj(username)) 
       {
-        console.log('User ' + socket.username + ' was fighting...');
+        //console.log('User ' + socket.username + ' was fighting...');
         // fightPlayers.getSocketObj(username).connected = true;
         // return; 
       }
     }
     else socket.username = 'DesktopUser'+numUsers.toString();
 
-    console.log('User ' + socket.username + ' connected to solo pool.');
+    //console.log('User ' + socket.username + ' connected to solo pool.');
     socket.join('solo');
     soloPlayers.push({
       username: socket.username,
@@ -138,6 +138,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('has arrived', function (arrivedAtObj) {
+    console.log('Has arrived from ' + socket.username);
     if (questPlayers.length !== 2) 
     {
       console.log('Waiting for both players to join quest.');
