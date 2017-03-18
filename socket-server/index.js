@@ -169,10 +169,6 @@ io.on('connection', function (socket) {
       return;
     }
     
-    // Username is defined AND both are currently connected
-    console.log(socket.username + ' has arrived: ' + arrivedAtObj);  
-    
-    
     var allArrived = questPlayers[0].arrivedAtObj && questPlayers[1].arrivedAtObj;
     if (allArrived) 
     {
