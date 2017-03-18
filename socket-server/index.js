@@ -73,10 +73,14 @@ io.on('connection', function (socket) {
     } 
 
     socket.join('solo');
-    soloPlayers.push({
-      username: socket.username,
-      socketid: socket.id
-    });
+    // Ensure we do not double add players
+    if (!prepPlayers.getSocketObj(socket.username))
+    {
+      soloPlayers.push({
+        username: socket.username,
+        socketid: socket.id
+      });
+    }
 
     // Show this client the welcome message
     socket.emit('login', {
@@ -287,10 +291,14 @@ io.on('connection', function (socket) {
     fightPlayers.removeSocketObj(socket.username);
 
     socket.join('solo');
-    soloPlayers.push({
-      username: socket.username,
-      socketid: socket.id,
-    });
+    // Ensure we do not double add players
+    if (!prepPlayers.getSocketObj(socket.username))
+    {
+      soloPlayers.push({
+        username: socket.username,
+        socketid: socket.id
+      });
+    }
   });
 
   // when the user disconnects.. perform this
