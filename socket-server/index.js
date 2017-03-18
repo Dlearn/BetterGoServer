@@ -22,11 +22,11 @@ var fightPlayers = [];
 fightPlayers.push(0);
 
 /*
- * There are 4 rooms
- * 'solo'
- * 'quest'
- * 'prep'
- * 'fight'
+ * There are 4 rooms with respective array handlers
+ * 'solo'   soloPlayers
+ * 'quest'  questPlayers
+ * 'prep'   prepPlayers
+ * 'fight'  fightPlayers
  */
 
 io.on('connection', function (socket) {
@@ -43,6 +43,7 @@ io.on('connection', function (socket) {
       socket.username = username;
     else 
       socket.username = 'Desktop'+numUsers.toString();
+    console.log('User ' + socket.username + ' connected.');
 
     if (questPlayers.getSocketObj(socket.username)) 
     {
@@ -71,11 +72,15 @@ io.on('connection', function (socket) {
       }
     } 
 
-    //console.log('User ' + socket.username + ' connected to solo pool.');
     socket.join('solo');
     soloPlayers.push({
       username: socket.username,
       socketid: socket.id
+    });
+
+    // Show this client the welcome message
+    socket.emit('login', {
+      username: socket.username,
     });
 
     // echo globally (all clients) that a person has connected
@@ -218,7 +223,7 @@ io.on('connection', function (socket) {
     var allReady = prepPlayers[0].ready && prepPlayers[1].ready;
     if (allReady) {
       prepPlayers[0].ready = false; // To prevent other player from also realizing that both are ready
-      console.log('BOTH READY!');
+      console.log('Both players are ready and will beging fighting boss!');
       // The server randomize a boss for clients
       var randomBoss = getRandomInt(0,2);
       var bossType = '', bossHealth = 0;

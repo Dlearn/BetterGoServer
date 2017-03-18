@@ -95,10 +95,19 @@ $(function() {
   var send_coordinates;
 
   socket.emit('add user');
-  connected = true;
-  looking_for_party = setInterval(function() {
+  
+  socket.on('login', function (data) {
+    connected = true;
+    // Display the welcome message
+    var message = "Welcome " +  data.username + ", you have logged in.";
+    log(message);
+
+    log('Looking for other solo members...');
+    looking_for_party = setInterval(function() {
       socket.emit('get solos');
     }, PING_FREQUENCY * 1000);
+  });
+
 
   socket.on('form party', function (quest) {
     log(quest.inviter + ' has formed a questing party with ' + quest.invitee + '!');
