@@ -16,55 +16,48 @@ var numUsers = 0;
 
 var soloPlayers = [];
 var questPlayers = [];
+questPlayers.push(false);
+var prepPlayers = [];
 var fightPlayers = [];
 fightPlayers.push(0);
 
-var objCoodinates = { x: 51, y: 51 }
+/*
+ * There are 4 rooms
+ * 'solo'
+ * 'quest'
+ * 'prep'
+ * 'fight'
+ */
 
 io.on('connection', function (socket) {
   var addedUser = false;
 
   // when the client emits 'add user', this listens and executes
   socket.on('add user', function (username) {
-    console.log('Attempted connection by ' + username);
-
-    // No double connections
-    if (addedUser) return; 
-    //console.log('WARNING: Double connection attempted.');  
+    if (addedUser) return; // No double connections
     addedUser = true;
     numUsers++;
 
     // we store the username in the socket session for this client
     if (username) 
-    {
       socket.username = username;
-      if (questPlayers.getSocketObj(username)) 
-      {
-        //console.log('User ' + socket.username + ' reconnected to quest.');
-        questPlayers.getSocketObj(username).connected = true;
-        socket.broadcast.emit('user joined', {
-          username: socket.username,
-        });
-        return;
-      } else if (fightPlayers.getSocketObj(username)) 
-      {
-        //console.log('User ' + socket.username + ' was fighting...');
-        // fightPlayers.getSocketObj(username).connected = true;
-        // return; 
-      }
-    }
-    else socket.username = 'DesktopUser'+numUsers.toString();
+    else 
+      socket.username = 'Desktop'+numUsers.toString();
+
+    if (questPlayers.getSocketObj(socket.username)) 
+    {
+      // TODO: Check that quest complete, if so, go next.
+      // TODO: Else...
+      questPlayers.getSocketObj(username).connected = true;
+      socket.join('quest');
+      return;
+    } 
 
     //console.log('User ' + socket.username + ' connected to solo pool.');
     socket.join('solo');
     soloPlayers.push({
       username: socket.username,
       socketid: socket.id
-    });
-
-    // Show this client the welcome message
-    socket.emit('login', {
-      username: socket.username,
     });
 
     // echo globally (all clients) that a person has connected
@@ -95,8 +88,8 @@ io.on('connection', function (socket) {
        * Saga Courtyard
        * Elm Courtyard
        * Cendana Courtyard
-       * Cafe Agora
-       * Library Main Staircase
+       * MPH
+       * Library
        */
 
       var randomObj = getRandomInt(0,2);
@@ -118,6 +111,8 @@ io.on('connection', function (socket) {
       socket.emit('form party', payload);
       // Invitee joins the party
       socket.broadcast.to(invitee_id).emit('form party', payload);
+
+      questPlayers[0] = false; // Make sure that questroom is reset - not arrived at objective
     }
   });
 
@@ -128,7 +123,6 @@ io.on('connection', function (socket) {
     // Add to questPlayers
     questPlayers.push({
       username: socket.username,
-      socketid: socket.id,
       connected: true,
       arrivedAtObj: false
     });
@@ -139,42 +133,74 @@ io.on('connection', function (socket) {
 
   socket.on('has arrived', function (arrivedAtObj) {
     console.log('Has arrived from ' + socket.username + ' || ' + socket.id);
-    if (questPlayers.length !== 2) 
+    if (questPlayers.length !== 3) 
     {
       console.log('Waiting for both players to join quest.');
       return;
     } 
 
     var questPlayer = questPlayers.getSocketObj(socket.username);
-    questPlayer.connected = true;
+    // TODO: Do I need this line?
+    //questPlayer.connected = true;
     questPlayer.arrivedAtObj = arrivedAtObj;
 
     socket.emit('arrive data', {
-      d1user: questPlayers[0].username,
-      d1conn: questPlayers[0].connected,
-      d1arri: questPlayers[0].arrivedAtObj,
-      d2user: questPlayers[1].username,
-      d2conn: questPlayers[1].connected,
-      d2arri: questPlayers[1].arrivedAtObj,
+      d1user: questPlayers[1].username,
+      d1conn: questPlayers[1].connected,
+      d1arri: questPlayers[1].arrivedAtObj,
+      d2user: questPlayers[2].username,
+      d2conn: questPlayers[2].connected,
+      d2arri: questPlayers[2].arrivedAtObj,
     });
 
-    if (!questPlayers[0].connected)
+    if (!questPlayers[1].connected)
     {
       console.log(questPlayers[0].username + ' isn\'t connected');
       return;
     } 
-    if(!questPlayers[1].connected) 
+    if(!questPlayers[2].connected) 
     {
       console.log(questPlayers[1].username + ' isn\'t connected');
       return;
     }
     
-    var allArrived = questPlayers[0].arrivedAtObj && questPlayers[1].arrivedAtObj;
+    var allArrived = questPlayers[1].arrivedAtObj && questPlayers[2].arrivedAtObj;
     if (allArrived) 
     {
-      questPlayers.getSocketObj(socket.username).arrivedAtObj = false; // To prevent other player from also realizing that both are done
-      console.log('Party has arrived at the objective and will fight boss!');
+      questPlayers[1].arrivedAtObj = false; // To prevent other player from also realizing that both are done
+      console.log('Party has arrived at the objective and are prepping!');
+      questPlayers[0] = true; // We've reached the objective!
       
+      io.to('quest').emit('party on obj');
+    }
+  });
+
+  socket.on('transition prep', function () {
+    // Remove from questPlayers
+    questPlayers.removeSocketObj(socket.username);
+    
+    prepPlayers.push({
+      username: socket.username,
+      ready: false,
+    });
+    socket.leave('quest');
+    socket.join('prep');
+  });
+
+  socket.on('is ready', function (playerReady) {
+    if (prepPlayers.length !== 2) 
+    {
+      console.log('Waiting for both players to join prep.');
+      return;
+    } 
+
+    var prepPlayer = prepPlayers.getSocketObj(socket.username);
+    prepPlayer.ready = playerReady;
+    
+    var allReady = prepPlayers[0].ready && prepPlayers[1].ready;
+    if (allReady) {
+      prepPlayers[0].ready = false; // To prevent other player from also realizing that both are ready
+      console.log('BOTH READY!');
       // The server randomize a boss for clients
       var randomBoss = getRandomInt(0,2);
       var bossType = '', bossHealth = 0;
@@ -191,7 +217,7 @@ io.on('connection', function (socket) {
           bossType = 'LianHwa';
           bossHealth = 110;
       }
-      io.to('quest').emit('party on obj', {
+      io.to('prep').emit('spawn boss', {
         bossType: bossType,
         bossHealth: bossHealth
       });
@@ -200,20 +226,13 @@ io.on('connection', function (socket) {
   });
 
   socket.on('transition fight', function () {
-    // Remove from questPlayers
-    questPlayers.removeSocketObj(socket.username);
-
-    // Safety: Weird bugs happen because double adding
-    if (fightPlayers.getSocketObj(socket.username)) {
-      console.log('Warning: Already contains this username');
-      return;
-    }
+    // Remove from prepPlayers
+    prepPlayers.removeSocketObj(socket.username);
+    
     fightPlayers.push({
       username: socket.username,
-      socketid: socket.id,
-      connected: true,
     });
-    socket.leave('quest');
+    socket.leave('prep');
     socket.join('fight');
   });
 
@@ -262,9 +281,13 @@ io.on('connection', function (socket) {
       {
         questPlayers.getSocketObj(socket.username).connected = false;
         questPlayers.getSocketObj(socket.username).arrivedAtObj = false;
+        socket.leave('quest');
       }
       else if(fightPlayers.getSocketObj(socket.username)) 
+      {
         fightPlayers.getSocketObj(socket.username).connected = false;
+        socket.leave('fight');
+      }
 
       // echo globally that this client has left
       socket.broadcast.emit('user left', {
@@ -279,6 +302,7 @@ io.on('connection', function (socket) {
 
     if (data[0] === 'getSolo') socket.emit('console', soloPlayers);
     else if (data[0] === 'getQuest') socket.emit('console', questPlayers);
+    else if (data[0] === 'getPrep') socket.emit('console', prepPlayers);
     else if (data[0] === 'getFight') socket.emit('console', fightPlayers);
     else if (data[0] === 'rooms') socket.emit('console', socket.rooms);
     else

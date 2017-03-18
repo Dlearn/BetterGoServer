@@ -16,6 +16,7 @@ $(function() {
 
   var connected = false;
   var arrivedAtObj = false;
+  var playerReady = false;
 
   // Log a message
   function log (message) {
@@ -81,6 +82,10 @@ $(function() {
           log('Arrived at the objective.');
           arrivedAtObj = true;
         }
+        else if (message_parts[0] === 'ready') {
+          log('You are ready.');
+          playerReady = true;
+        }
         else socket.emit('new message', message);
       }
     }
@@ -91,18 +96,10 @@ $(function() {
   var send_coordinates;
 
   socket.emit('add user');
-
-  socket.on('login', function (data) {
-    connected = true;
-    // Display the welcome message
-    var message = "Welcome " +  data.username + ", you have logged in.";
-    log(message);
-
-    log('Looking for other solo members...');
-    looking_for_party = setInterval(function() {
+  connected = true;
+  looking_for_party = setInterval(function() {
       socket.emit('get solos');
     }, PING_FREQUENCY * 1000);
-  });
 
   socket.on('form party', function (quest) {
     log(quest.inviter + ' has formed a questing party with ' + quest.invitee + '!');
@@ -126,7 +123,16 @@ $(function() {
   socket.on('party on obj', function (data) {
     // Stop sending arrived to server 
     clearInterval(send_arrived);
-    // Transition from Quest to Fight
+    socket.emit('transition prep');
+
+    send_ready = setInterval(function() {
+      socket.emit('is ready', playerReady);
+    }, PING_FREQUENCY * 1000);
+  });
+
+  socket.on('spawn boss', function (data) {
+    // Stop sending ready to server
+    clearInterval(send_ready);
     socket.emit('transition fight');
 
     var bossType = data.bossType;
@@ -143,6 +149,7 @@ $(function() {
     log('CONGRATULATIONS! BOSS DEFEATED! HERE ARE YOUR REWARDS...');
 
     arrivedAtObj = false;
+    playerReady = false;
     socket.emit('back transition solo');
     log('Back to looking for other solo members...');
     looking_for_party = setInterval(function() {
