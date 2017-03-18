@@ -155,7 +155,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on('has arrived', function (arrivedAtObj) {
-    console.log('Has arrived from ' + socket.username + ' || ' + socket.id);
+    //console.log('Arrival Data from ' + socket.username + ' || ' + socket.id);
     if (questPlayers.length !== 3) 
     {
       console.log('Waiting for both players to join quest.');
@@ -178,12 +178,12 @@ io.on('connection', function (socket) {
 
     if (!questPlayers[1].connected)
     {
-      console.log(questPlayers[0].username + ' isn\'t connected');
+      console.log(questPlayers[1].username + ' isn\'t connected');
       return;
     } 
     if(!questPlayers[2].connected) 
     {
-      console.log(questPlayers[1].username + ' isn\'t connected');
+      console.log(questPlayers[2].username + ' isn\'t connected');
       return;
     }
     

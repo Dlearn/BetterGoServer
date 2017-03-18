@@ -123,10 +123,10 @@ $(function() {
     }, PING_FREQUENCY * 1000);
   });
 
-  socket.on('arrive data', function (data) {
-    log(data.d1user + ': Connected - ' + data.d1conn + '. Arrived - ' +  data.d1arri);
-    log(data.d2user + ': Connected - ' + data.d2conn + '. Arrived - ' +  data.d2arri);
-  });
+  // socket.on('arrive data', function (data) {
+  //   log(data.d1user + ': Connected - ' + data.d1conn + '. Arrived - ' +  data.d1arri);
+  //   log(data.d2user + ': Connected - ' + data.d2conn + '. Arrived - ' +  data.d2arri);
+  // });
 
   socket.on('party on obj', function (data) {
     // Stop sending arrived to server 
