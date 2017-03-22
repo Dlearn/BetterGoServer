@@ -74,13 +74,11 @@ io.on('connection', function (socket) {
 
     socket.join('solo');
     // Ensure we do not double add players
-    if (!prepPlayers.getSocketObj(socket.username))
-    {
-      soloPlayers.push({
-        username: socket.username,
-        socketid: socket.id
-      });
-    }
+    if (soloPlayers.getSocketObj(socket.username)) return;
+    soloPlayers.push({
+      username: socket.username,
+      socketid: socket.id
+    });
 
     // Show this client the welcome message
     socket.emit('login', {
@@ -159,6 +157,7 @@ io.on('connection', function (socket) {
     // Remove from soloPlayers
     soloPlayers.removeSocketObj(socket.username);
 
+    if(questPlayers.getSocketObj(socket.username)) return;
     // Add to questPlayers
     questPlayers.push({
       username: socket.username,
@@ -218,6 +217,7 @@ io.on('connection', function (socket) {
     // Remove from questPlayers
     questPlayers.removeSocketObj(socket.username);
 
+    if(prepPlayers.getSocketObj(socket.username)) return;
     prepPlayers.push({
       username: socket.username,
       ready: false,
