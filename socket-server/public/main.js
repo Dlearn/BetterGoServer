@@ -1,5 +1,5 @@
 $(function() {
-  var PING_FREQUENCY = 5;
+  var PING_FREQUENCY = 4;
   var COLORS = [
     '#e21400', '#91580f', '#f8a700', '#f78b00',
     '#58dc00', '#287b00', '#a8f07a', '#4ae8c4',
@@ -15,7 +15,8 @@ $(function() {
   var $currentInput = $inputMessage.focus();
 
   var connected = false;
-  var arrivedAtObj = false;
+  var arrivedAtObj = true;
+  var isReady = true;
 
   // Log a message
   function log (message) {
@@ -83,7 +84,7 @@ $(function() {
         }
         else if (message_parts[0] === 'ready') {
           log('You are ready.');
-          socket.emit('is ready', true);
+          isReady = true;
         }
         else socket.emit('new message', message);
       }
@@ -134,12 +135,18 @@ $(function() {
     // Stop sending arrived to server 
     clearInterval(send_arrived);
     socket.emit('transition prep');
+
+    send_ready = setInterval(function() {
+      socket.emit('is ready', isReady);
+    }, PING_FREQUENCY * 1000);
   });
 
   socket.on('party is ready', function (data) {
     log('Both players are ready! Spawning boss...');
 
-    // Stop sending arrived to server 
+    // Stop sending ready to server 
+    clearInterval(send_ready);
+    
     socket.emit('transition fight');
   });
 
@@ -157,7 +164,8 @@ $(function() {
     // TODO: Rewards
     log('CONGRATULATIONS! YOU HAVE DEFEATED ALL THE MONSTERS! HERE ARE YOUR REWARDS...');
 
-    arrivedAtObj = false;
+    // arrivedAtObj = true;
+    // isReady = true;
     socket.emit('back transition solo');
     log('Back to looking for other solo members...');
     looking_for_party = setInterval(function() {
