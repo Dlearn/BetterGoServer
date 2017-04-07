@@ -342,7 +342,7 @@ io.on('connection', function (socket) {
 
     socket.join('solo');
     // Ensure we do not double add players
-    if (!prepPlayers.getSocketObj(socket.username))
+    if (!soloPlayers.getSocketObj(socket.username))
     {
       soloPlayers.push({
         username: socket.username,
