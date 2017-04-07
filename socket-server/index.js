@@ -19,7 +19,8 @@ var questPlayers = [];
 questPlayers.push(false);
 var prepPlayers = [];
 var fightPlayers = [];
-fightPlayers.push(0);
+fightPlayers.push(1); // phase
+fightPlayers.push(0); // current boss's remaining health
 
 /*
  * There are 4 rooms with respective array handlers
@@ -117,25 +118,22 @@ io.on('connection', function (socket) {
        * Library
        */
 
-      var randomObj = getRandomInt(0,5);
+      var randomObj = getRandomInt(0,4);
       var objLocation = '';
       switch(randomObj) {
         case 0:
           objLocation = 'Saga'
           break;
         case 1:
-          objLocation = 'Dean of Faculty Office'
-          break;
-        case 2:
           objLocation = 'Elm'
           break;
-        case 3:
+        case 2:
           objLocation = 'Library'
           break;
-        case 4:
+        case 3:
           objLocation = 'MPH'
           break;
-        default: // Cendana
+        default: 
           objLocation = 'Cendana'
       }
 
@@ -239,28 +237,30 @@ io.on('connection', function (socket) {
     var allReady = prepPlayers[0].ready && prepPlayers[1].ready;
     if (allReady) {
       prepPlayers[0].ready = false; // To prevent other player from also realizing that both are ready
-      console.log('Both players are ready and will beging fighting boss!');
+      console.log('Both players are ready and will begin fighting!');
       // The server randomize a boss for clients
-      var randomBoss = getRandomInt(0,2);
-      var bossType = '', bossHealth = 0;
-      switch(randomBoss) {
-        case 0:
-          bossType = 'RedKnight';
-          bossHealth = 90;
-          break;
-        case 1:
-          bossType = 'Smail';
-          bossHealth = 80;
-          break;
-        default:
-          bossType = 'LianHwa';
-          bossHealth = 110;
-      }
-      io.to('prep').emit('spawn boss', {
-        bossType: bossType,
-        bossHealth: bossHealth
-      });
-      fightPlayers[0] = bossHealth;
+      // var randomBoss = getRandomInt(0,2);
+      // var bossType = '', bossHealth = 0;
+      // switch(randomBoss) {
+      //   case 0:
+      //     bossType = 'RedKnight';
+      //     bossHealth = 90;
+      //     break;
+      //   case 1:
+      //     bossType = 'Smail';
+      //     bossHealth = 80;
+      //     break;
+      //   default:
+      //     bossType = 'LianHwa';
+      //     bossHealth = 110;
+      // }
+      io.to('prep').emit('party is ready');
+      //io.to('prep').emit('spawn boss', {
+      //   bossType: 'Smail',
+      //   bossHealth: 80
+      // });
+      // fightPlayers[0] = 1;
+      // fightPlayers[1] = 80;
     }
   });
 
@@ -273,26 +273,64 @@ io.on('connection', function (socket) {
     });
     socket.leave('prep');
     socket.join('fight');
+
+    if (fightPlayers.length === 4) 
+    {
+      io.to('fight').emit('spawn boss', {
+        bossType: 'Smail',
+        bossHealth: 90
+      });
+      fightPlayers[0] = 1;
+      fightPlayers[1] = 90;
+    }
   });
 
   socket.on('attack', function (data) {
-    if (fightPlayers.length !== 3) 
+    if (fightPlayers.length !== 4) 
     {
       socket.emit('console', fightPlayers);
       console.log('Warning: Fight needs 2 people.');
     } else
     {
-      // TODO: DO WE NEED TO CHECK FOR DISCONNECTION POLICY?
-      fightPlayers[0] -= data.damage;
-      fightPlayers[0] = Math.max(0, fightPlayers[0]);
+      // TODO: CHECK FOR DISCONNECTION POLICY
+      fightPlayers[1] -= data.damage;
+      fightPlayers[1] = Math.max(0, fightPlayers[1]);
       console.log(socket.username + ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.');
       
       io.to('fight').emit('boss hit', {
-        remainingHealth: fightPlayers[0],
+        remainingHealth: fightPlayers[1],
         username: socket.username,
-        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[0] + ' left.'
+        message: ' hit the boss for ' + data.damage + '. The boss has ' + fightPlayers[1] + ' left.'
       });
-      if (fightPlayers[0] <= 0) io.to('fight').emit('boss defeated');
+
+      // Defeated this monster
+      if (fightPlayers[1] <= 0) 
+      {
+        fightPlayers[0]++;
+        // Finished all 4 phases
+        if (fightPlayers[0] < 5)
+        {
+          if (fightPlayers[0] === 2 || fightPlayers[0] === 3)
+          {
+            io.to('fight').emit('spawn boss', {
+              bossType: 'RedKnight',
+              bossHealth: 90
+            });
+            fightPlayers[1] = 90;
+          } else if (fightPlayers[0] == 4)
+          {
+            io.to('fight').emit('spawn boss', {
+              bossType: 'LianHwa',
+              bossHealth: 110
+            });
+            fightPlayers[1] = 120;
+          }
+
+        } else // fightPlayers[0] === 5
+        {
+          io.to('fight').emit('quest completed');
+        }
+      }
     } 
   });
 

@@ -76,7 +76,7 @@ $(function() {
 
         message_parts = message.split(/[ ]+/);
         if (message_parts[0] === 'invite') socket.emit('invite', { username: message_parts[1] });
-        else if (message_parts[0] === 'attack') socket.emit('attack', { damage: getRandomInt(10, 30) });
+        else if (message_parts[0] === 'attack') socket.emit('attack', { damage: getRandomInt(20, 40) });
         else if (message_parts[0] === 'arrive') {
           log('Arrived at the objective.');
           arrivedAtObj = true;
@@ -129,26 +129,33 @@ $(function() {
   // });
 
   socket.on('party on obj', function (data) {
+    log('Party has reached the objective! Waiting for both players to be ready...');
+
     // Stop sending arrived to server 
     clearInterval(send_arrived);
     socket.emit('transition prep');
   });
 
-  socket.on('spawn boss', function (data) {
-    socket.emit('transition fight');
+  socket.on('party is ready', function (data) {
+    log('Both players are ready! Spawning boss...');
 
+    // Stop sending arrived to server 
+    socket.emit('transition fight');
+  });
+
+  socket.on('spawn boss', function (data) {
     var bossType = data.bossType;
     var bossHealth = data.bossHealth;
-    log('Party has reached the objective! Fighting a ' + bossType + ' with ' + bossHealth + ' health.');
+    log('Fighting a ' + bossType + ' with ' + bossHealth + ' health.');
   });
 
   socket.on('boss hit', function (data) {
     addChatMessage(data);
   });
 
-  socket.on('boss defeated', function (){
+  socket.on('quest completed', function (){
     // TODO: Rewards
-    log('CONGRATULATIONS! BOSS DEFEATED! HERE ARE YOUR REWARDS...');
+    log('CONGRATULATIONS! YOU HAVE DEFEATED ALL THE MONSTERS! HERE ARE YOUR REWARDS...');
 
     arrivedAtObj = false;
     socket.emit('back transition solo');
